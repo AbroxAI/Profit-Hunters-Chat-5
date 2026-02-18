@@ -1,0 +1,377 @@
+/* widget.css
+   Abrox — Profit Hunters Chat
+   Comprehensive UI styles for Telegram-like glass look
+*/
+
+/* ===================== variables ===================== */
+:root{
+  --tg-bg: #07121a;            /* very dark bg */
+  --tg-panel: rgba(20,32,42,0.72);
+  --tg-glass: rgba(255,255,255,0.03);
+  --tg-accent: #2ea6ff;        /* blue accent for CTAs */
+  --tg-text: #e6f0f6;
+  --tg-muted: #9aa7bd;
+  --tg-incoming-bg: #182533;   /* dark incoming bubble */
+  --tg-outgoing-bg: #2b5278;   /* outgoing bubble */
+  --tg-border: rgba(255,255,255,0.04);
+  --tg-header-height: 64px;
+  --tg-radius-lg: 14px;
+  --tg-radius-sm: 8px;
+  --tg-shadow: 0 6px 18px rgba(0,0,0,0.35);
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+}
+
+/* ===================== layout ===================== */
+body {
+  margin: 0;
+  background: linear-gradient(180deg, var(--tg-bg), #041018 120%);
+  color: var(--tg-text);
+  -webkit-font-smoothing:antialiased;
+  -moz-osx-font-smoothing:grayscale;
+}
+
+/* main container */
+#tg-app {
+  display:flex;
+  flex-direction:column;
+  height:100vh;
+  width:100%;
+  gap:8px;
+  padding: 12px;
+  box-sizing: border-box;
+}
+
+/* header */
+.tg-header {
+  display:flex;
+  align-items:center;
+  gap:12px;
+  height:var(--tg-header-height);
+  padding:8px 12px;
+  background: transparent;
+}
+.tg-header .tg-logo {
+  width:44px; height:44px; border-radius:10px; object-fit:cover; flex-shrink:0;
+}
+.tg-header .tg-title-box {
+  display:flex; flex-direction:column; min-width:0;
+}
+.tg-header .tg-title {
+  font-weight:800;
+  font-size:18px;
+  line-height:1;
+  color:var(--tg-text);
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.tg-header .tg-meta {
+  font-size:12px;
+  color:var(--tg-muted);
+  margin-top:3px;
+}
+
+/* header right icons */
+.tg-header .tg-actions {
+  margin-left:auto;
+  display:flex;
+  gap:8px;
+  align-items:center;
+}
+.tg-header .tg-icon-btn {
+  width:36px; height:36px; display:flex; align-items:center; justify-content:center;
+  background:var(--tg-glass); border-radius:10px; border:1px solid var(--tg-border); cursor:pointer;
+}
+
+/* ===================== pin banner (telegram-style) ===================== */
+.tg-pin-banner {
+  display:flex;
+  align-items:center;
+  gap:12px;
+  padding:8px 12px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.02));
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-radius:14px;
+  color:var(--tg-text);
+  font-size:13px;
+  position:sticky;
+  top:calc(var(--tg-header-height) + 8px);
+  z-index:55;
+  max-width:96%;
+  margin:10px auto;
+  transform:translateY(-8px);
+  opacity:0;
+  transition:all 260ms cubic-bezier(.22,.9,.37,1);
+  box-shadow: var(--tg-shadow);
+  height:48px;
+  align-items:center;
+  overflow:hidden;
+}
+.tg-pin-banner.show{ transform:translateY(0); opacity:1; }
+.tg-pin-banner .pin-thumb{ width:40px; height:40px; border-radius:8px; object-fit:cover; flex-shrink:0; }
+.tg-pin-banner .pin-body{ flex:1; min-width:0; display:flex; flex-direction:column; justify-content:center; gap:2px; }
+.tg-pin-banner .pin-title{ font-weight:700; font-size:13px; color:var(--tg-text); line-height:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.tg-pin-banner .pin-excerpt{ font-size:12px; color:var(--tg-muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.tg-pin-banner .pin-actions{ display:flex; gap:8px; align-items:center; margin-left:8px; }
+.tg-pin-banner .pin-btn{ background:transparent; border:none; padding:6px; border-radius:8px; cursor:pointer; color:var(--tg-muted); display:flex; align-items:center; gap:6px; }
+.tg-pin-banner .pin-count{ font-size:12px; color:var(--tg-muted); padding:4px 8px; border-radius:12px; background: rgba(255,255,255,0.02); }
+.tg-pin-banner .contact-admin-btn{ height:34px; padding:6px 12px; border-radius:18px; background:var(--tg-accent); color:#fff; font-weight:700; border:0; box-shadow:0 6px 16px rgba(46,166,255,0.12); cursor:pointer; }
+
+/* ===================== comments container ===================== */
+#tg-comments-container {
+  flex:1 1 auto;
+  overflow:auto;
+  padding: 10px 12px 20px 12px;
+  box-sizing:border-box;
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+  scroll-behavior:smooth;
+}
+
+/* date sticker */
+.tg-date-sticker {
+  display:inline-block;
+  align-self:center;
+  background: rgba(255,255,255,0.03);
+  padding:6px 12px;
+  border-radius:20px;
+  color:var(--tg-muted);
+  font-size:12px;
+  box-shadow: none;
+}
+
+/* system message */
+.tg-system-message { display:flex; justify-content:center; }
+.tg-system-message .sys-inner {
+  background: rgba(255,255,255,0.02);
+  color: var(--tg-muted);
+  padding:8px 12px; border-radius:12px; font-size:13px;
+}
+
+/* ===================== bubbles ===================== */
+.tg-bubble {
+  display:flex;
+  gap:10px;
+  align-items:flex-end;
+  max-width:95%;
+  width:auto;
+}
+.tg-bubble.incoming { align-self:flex-start; }
+.tg-bubble.outgoing { align-self:flex-end; flex-direction:row-reverse; }
+
+/* avatar */
+.tg-bubble-avatar {
+  width:40px; height:40px; border-radius:8px; object-fit:cover; flex-shrink:0;
+}
+
+/* content */
+.tg-bubble-content {
+  max-width:76%;
+  background: var(--tg-incoming-bg);
+  color:var(--tg-text);
+  padding:8px 12px;
+  border-radius:12px;
+  position:relative;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.28);
+  font-size:14px;
+  line-height:1.4;
+}
+.tg-bubble.outgoing .tg-bubble-content { background: var(--tg-outgoing-bg); }
+
+/* tail (visual spacing via pseudo element on content) */
+.tg-bubble.incoming .tg-bubble-content::before{
+  content:"";
+  position:absolute;
+  left:-6px;
+  bottom:8px;
+  width:12px; height:12px;
+  background: var(--tg-incoming-bg);
+  transform: rotate(45deg);
+  border-radius:2px;
+  z-index:0;
+}
+.tg-bubble.outgoing .tg-bubble-content::before{
+  content:"";
+  position:absolute;
+  right:-6px;
+  bottom:8px;
+  width:12px; height:12px;
+  background: var(--tg-outgoing-bg);
+  transform: rotate(45deg);
+  border-radius:2px;
+  z-index:0;
+}
+
+/* ensure tail doesn't overlap avatar — we space content by 6px */
+.tg-bubble .tg-bubble-content { margin-bottom:2px; z-index:1; }
+
+/* sender name above bubble */
+.tg-bubble-sender { font-weight:700; font-size:13px; margin-bottom:6px; color:var(--tg-text); }
+
+/* message text */
+.tg-bubble-text { white-space:pre-wrap; word-break:break-word; color:var(--tg-text); }
+
+/* image in bubble */
+.tg-bubble-image {
+  width:240px; max-width:72%; height:auto; border-radius:10px; margin-top:6px; object-fit:cover; display:block;
+}
+
+/* reply preview */
+.tg-reply-preview {
+  background: rgba(255,255,255,0.02);
+  padding:6px 8px;
+  border-radius:8px;
+  font-size:12px;
+  color:var(--tg-muted);
+  cursor:pointer;
+  margin-bottom:6px;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+/* meta area (time, seen) */
+.tg-bubble-meta { display:flex; gap:6px; align-items:center; margin-top:8px; justify-content:flex-end; }
+.tg-bubble-meta span{ font-size:11px; color:var(--tg-muted); }
+.tg-bubble-meta .seen { display:flex; gap:6px; align-items:center; color:var(--tg-muted); font-size:11px; }
+
+/* reactions */
+.tg-reactions { margin-top:8px; display:flex; gap:6px; flex-wrap:wrap; }
+.tg-reactions .reaction-pill {
+  padding:4px 8px; font-size:12px; border-radius:12px; background: rgba(255,255,255,0.03); color:var(--tg-text);
+}
+
+/* highlight used when pin clicked */
+.tg-highlight {
+  animation: tg-highlight-anim 2.6s ease both;
+  box-shadow: 0 0 0 3px rgba(255,215,0,0.16) inset;
+  border-radius:12px;
+}
+@keyframes tg-highlight-anim {
+  0% { box-shadow: 0 0 0 6px rgba(255,215,0,0.32) inset; transform: translateY(-2px); }
+  50% { box-shadow: 0 0 0 2px rgba(255,215,0,0.18) inset; transform: translateY(0); }
+  100% { box-shadow: 0 0 0 0 rgba(255,215,0,0) inset; transform: translateY(0); }
+}
+
+/* ===================== join sticker (already provided) ===================== */
+/* (duplicate safe: keeps same look if previously pasted) */
+.tg-join-sticker-wrapper {
+  display:flex;
+  justify-content:center;
+  width:100%;
+  margin:10px 0;
+  pointer-events:none;
+}
+.tg-join-sticker {
+  display:flex;
+  align-items:center;
+  gap:12px;
+  padding:10px 12px;
+  border-radius:14px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.02));
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  box-shadow: 0 6px 18px rgba(0,0,0,0.18);
+  max-width: 86%;
+  color: var(--tg-text);
+  font-size: 13px;
+  align-items:center;
+}
+.tg-join-sticker-left { display:flex; align-items:center; gap:8px; }
+.tg-join-sticker-avatar { width:44px; height:44px; border-radius:10px; object-fit:cover; flex-shrink:0; }
+.tg-join-sticker-right { display:flex; flex-direction:column; min-width:0; }
+.tg-join-sticker-title { font-weight:700; font-size:13px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.tg-join-sticker-sub { font-size:12px; color: var(--tg-muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.tg-join-sticker-image { width:48px; height:48px; border-radius:10px; object-fit:cover; margin-left:8px; flex-shrink:0; }
+
+/* ===================== jump indicator (unseen messages) ===================== */
+#tg-jump-indicator {
+  position:fixed;
+  bottom:86px;
+  left:50%;
+  transform:translateX(-50%);
+  z-index:60;
+  background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.02));
+  padding:8px 12px;
+  border-radius:18px;
+  color:var(--tg-text);
+  font-size:13px;
+  box-shadow: var(--tg-shadow);
+}
+#tg-jump-indicator.hidden{ display:none; }
+
+/* ===================== input bar (floating pill) ===================== */
+.tg-input-wrap {
+  position:fixed;
+  bottom:18px;
+  left:50%;
+  transform:translateX(-50%);
+  width:min(980px, calc(100% - 40px));
+  z-index:70;
+  display:flex;
+  gap:10px;
+  align-items:flex-end;
+  justify-content:space-between;
+}
+.tg-input-pill {
+  display:flex;
+  align-items:center;
+  gap:8px;
+  background: rgba(255,255,255,0.02);
+  padding:10px 12px;
+  border-radius:28px;
+  width:100%;
+  box-shadow: 0 8px 30px rgba(0,0,0,0.36);
+  border: 1px solid var(--tg-border);
+}
+#tg-comment-input {
+  flex:1;
+  background:transparent;
+  border:0;
+  outline:none;
+  color:var(--tg-text);
+  font-size:14px;
+  line-height:1.4;
+  resize:none;
+  min-height:36px;
+  max-height:120px;
+}
+.tg-input-actions { display:flex; gap:8px; align-items:center; }
+
+/* camera & send */
+.tg-camera-btn { width:44px; height:44px; border-radius:10px; display:flex; align-items:center; justify-content:center; cursor:pointer; background:var(--tg-glass); border:1px solid var(--tg-border); }
+.tg-send-btn { width:44px; height:44px; border-radius:10px; display:flex; align-items:center; justify-content:center; cursor:pointer; background:var(--tg-accent); color:#fff; font-weight:700; border:0; box-shadow:0 8px 24px rgba(46,166,255,0.12); }
+.tg-send-btn.hidden{ display:none; }
+
+/* glass button inside bubbles */
+.tg-glass-button {
+  padding:8px 12px;
+  border-radius:14px;
+  border:1px solid rgba(255,255,255,0.04);
+  background: rgba(255,255,255,0.02);
+  color:var(--tg-text);
+  cursor:pointer;
+  font-weight:700;
+}
+
+/* small misc */
+.tg-bubble-image{ background:#0e1a22; }
+.tg-reply-preview:hover{ background: rgba(255,255,255,0.04); }
+.tg-bubble .tg-reactions .reaction-pill:hover { transform: translateY(-2px); transition: 120ms ease; }
+
+/* lucide icons sizing */
+svg[data-lucide] { width:16px; height:16px; vertical-align:middle; }
+
+/* responsive tweaks */
+@media (max-width:640px){
+  .tg-header .tg-title { font-size:16px; }
+  .tg-pin-banner { max-width:96%; padding:6px 10px; height:44px; }
+  .tg-bubble-avatar { width:36px; height:36px; }
+  .tg-bubble-content { max-width:74%; font-size:13px; padding:8px 10px; }
+  .tg-input-pill { padding:8px 10px; }
+  .tg-join-sticker { max-width:94%; padding:8px 10px; }
+}
+
+/* end of widget.css */
