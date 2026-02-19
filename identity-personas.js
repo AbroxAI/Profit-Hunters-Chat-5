@@ -38,54 +38,66 @@
   const LAST_NAMES = ["Smith","Johnson","Brown","Taylor","Anderson","Thomas","Jackson","White","Harris","Martin","Thompson","Garcia","Martinez","Robinson","Clark","Rodriguez","Lewis","Walker","Hall","Allen","Young","King","Wright","Scott","Green","Baker","Adams","Nelson","Hill","Campbell"];
   const CRYPTO_ALIASES = ["BlockKing","PumpMaster","CryptoWolf","FomoKing","Hodler","MoonWalker","TraderJoe","BitHunter","AltcoinAce","ChainGuru","DeFiLord","MetaWhale","CoinSniper","YieldFarmer","NFTDegen","ChartWizard","TokenShark","AirdropKing","WhaleHunter","BullRider"];
   const TITLES = ["Trader","Investor","HODLer","Analyst","Whale","Shark","Mooner","Scalper","SwingTrader","DeFi","Miner","Blockchain","NFT","Quant","Signals","Mentor"];
-  const EMOJIS = ["💸","🔥","💯","✨","😎","👀","📈","🚀","💰","🤑","🎯","🏆","🤖","🎉","🍀","📊","⚡","💎","👑","🦄","🧠","🔮","🪙","🥂","💡","🛸","📉","💲","📱","💬"];
+  
+  // ----------------- Expanded Emoji Pool -----------------
+  const EMOJIS = [
+    "💸","🔥","💯","✨","😎","👀","📈","🚀","💰","🤑","🎯","🏆","🤖","🎉","🍀","📊","⚡","💎","👑","🦄","🧠","🔮","🪙","🥂","💡","🛸","📉","💲","📱","💬",
+    "🤩","😇","😜","😏","🙌","👍","👎","🤝","🤔","😱","🥳","🤗","😤","😴","🤪","😬","😡","😭","😢","🤤","😳","🥺","🙃","😐","😶","🤐","😈","👻","💀","☠️",
+    "🎃","🤡","🧩","🪄","🪅","🪆","🎁","🎀","🧸","🛡️","⚔️","🏹","🗡️","🪓","🪃","🏺","🛶","🚁","🛩️","🛰️","🚀","🛸","🛎️","🔔","🧭","🗺️","📜","📖","📚","📝","🖊️",
+    "✒️","🖋️","📌","📍","🧷","📎","🖇️","🗂️","📁","🗃️","🗄️","💌","📫","📪","📬","📭","📮","🛍️","🛒","🎨","🖌️","🖍️","🩰","👑","👒","🎩","🧢","⛑️","🪖","👓","🕶️"
+  ];
 
   // ----------------- Avatar pool & uniqueness helpers -----------------
-  // Large mixed pool (local assets + public services). You can expand this pool or generate via templates.
   const MIXED_AVATAR_POOL = (function buildPool(){
-    return [
-      // local assets (recommended for reliability)
-      "assets/avatars/stock1.jpg","assets/avatars/stock2.jpg","assets/avatars/stock3.jpg","assets/avatars/stock4.jpg","assets/avatars/stock5.jpg",
+    const pool = [];
 
-      // pravatar
-      "https://i.pravatar.cc/300?img=3","https://i.pravatar.cc/300?img=5","https://i.pravatar.cc/300?img=7","https://i.pravatar.cc/300?img=9","https://i.pravatar.cc/300?img=11",
-      "https://i.pravatar.cc/300?img=13","https://i.pravatar.cc/300?img=15","https://i.pravatar.cc/300?img=17","https://i.pravatar.cc/300?img=19","https://i.pravatar.cc/300?img=21",
+    // local avatars: assets/avatars/avatar1.jpg ... avatar300.jpg
+    for(let i=1;i<=300;i++){
+      pool.push(`assets/avatars/avatar${i}.jpg`);
+    }
 
-      // randomuser portraits
+    // online fallbacks
+    pool.push(
+      "https://i.pravatar.cc/300?img=3","https://i.pravatar.cc/300?img=5","https://i.pravatar.cc/300?img=7",
+      "https://i.pravatar.cc/300?img=9","https://i.pravatar.cc/300?img=11","https://i.pravatar.cc/300?img=13",
+      "https://i.pravatar.cc/300?img=15","https://i.pravatar.cc/300?img=17","https://i.pravatar.cc/300?img=19",
+      "https://i.pravatar.cc/300?img=21",
       "https://randomuser.me/api/portraits/men/21.jpg","https://randomuser.me/api/portraits/women/22.jpg",
       "https://randomuser.me/api/portraits/men/30.jpg","https://randomuser.me/api/portraits/women/31.jpg",
-
-      // picsum seeds
-      "https://picsum.photos/seed/alpha/300/300","https://picsum.photos/seed/bravo/300/300","https://picsum.photos/seed/charlie/300/300",
-      "https://picsum.photos/seed/delta/300/300","https://picsum.photos/seed/echo/300/300","https://picsum.photos/seed/foxtrot/300/300","https://picsum.photos/seed/golf/300/300",
-
-      // robohash / multiavatar / dicebear
+      "https://picsum.photos/seed/alpha/300/300","https://picsum.photos/seed/bravo/300/300",
+      "https://picsum.photos/seed/charlie/300/300","https://picsum.photos/seed/delta/300/300",
+      "https://picsum.photos/seed/echo/300/300","https://picsum.photos/seed/foxtrot/300/300",
+      "https://picsum.photos/seed/golf/300/300",
       "https://robohash.org/seed_1.png","https://robohash.org/seed_2.png","https://api.multiavatar.com/seed_one.png",
-      "https://api.multiavatar.com/seed_two.png","https://api.dicebear.com/7.x/adventurer/svg?seed=ari","https://api.dicebear.com/7.x/bottts/svg?seed=zek",
-
-      // ui-avatars (initials)
-      "https://ui-avatars.com/api/?name=AA&background=random","https://ui-avatars.com/api/?name=BB&background=random","https://ui-avatars.com/api/?name=CC&background=random",
-
-      // source unsplash with sigs
+      "https://api.multiavatar.com/seed_two.png","https://api.dicebear.com/7.x/adventurer/svg?seed=ari",
+      "https://api.dicebear.com/7.x/bottts/svg?seed=zek",
+      "https://ui-avatars.com/api/?name=AA&background=random","https://ui-avatars.com/api/?name=BB&background=random",
+      "https://ui-avatars.com/api/?name=CC&background=random",
       "https://source.unsplash.com/collection/365219/300x300?sig=1","https://source.unsplash.com/collection/365219/300x300?sig=2",
       "https://source.unsplash.com/collection/365219/300x300?sig=3","https://source.unsplash.com/collection/365219/300x300?sig=4",
-
-      // fallback seeds
       "https://picsum.photos/seed/zulu/300/300","https://picsum.photos/seed/yankee/300/300","https://picsum.photos/seed/xray/300/300"
-    ];
+    );
+
+    return pool;
   })();
 
-  // Persistent used avatars set (prevents reuse in same browser)
   const AVATAR_PERSIST_KEY = "abrox_used_avatars_v2";
   const UsedAvatarURLs = new Set();
-  (function loadUsedAvs(){ try{ const raw = localStorage.getItem(AVATAR_PERSIST_KEY); if(!raw) return; const arr = JSON.parse(raw); if(Array.isArray(arr)) arr.forEach(u => UsedAvatarURLs.add(u)); }catch(e){ /* ignore */ } })();
-  function saveUsedAvs(){ try{ localStorage.setItem(AVATAR_PERSIST_KEY, JSON.stringify(Array.from(UsedAvatarURLs))); }catch(e){ /* ignore */ } }
+  (function loadUsedAvs(){ 
+    try{ 
+      const raw = localStorage.getItem(AVATAR_PERSIST_KEY); 
+      if(!raw) return; 
+      const arr = JSON.parse(raw); 
+      if(Array.isArray(arr)) arr.forEach(u => UsedAvatarURLs.add(u)); 
+    }catch(e){ } 
+  })();
+  function saveUsedAvs(){ 
+    try{ localStorage.setItem(AVATAR_PERSIST_KEY, JSON.stringify(Array.from(UsedAvatarURLs))); }catch(e){ } 
+  }
   setInterval(saveUsedAvs, 1000*60*2);
   window.addEventListener("beforeunload", saveUsedAvs);
 
-  // pick a unique avatar from the pool and append small cache-bust
   function getUniqueAvatar(name){
-    // shuffle shallow copy
     const pool = MIXED_AVATAR_POOL.slice();
     for(let i = pool.length - 1; i > 0; i--){
       const j = Math.floor(Math.random()*(i+1));
@@ -99,14 +111,13 @@
         return candidate;
       }
     }
-    // fallback to ui-avatars initials with timestamp
     const initials = encodeURIComponent((name||"U").split(" ").map(s=>s[0]||"").slice(0,2).join("") || "U");
     const ua = `https://ui-avatars.com/api/?name=${initials}&background=random&size=256&v=${Date.now()}`;
     UsedAvatarURLs.add(ua);
     return ua;
   }
 
-  // ----------------- Name generator & uniqueness -----------------
+  // ----------------- Name generator -----------------
   const UsedNames = new Set();
   function random(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
   function maybe(p){ return Math.random() < p; }
@@ -138,7 +149,6 @@
 
   // ----------------- Avatar builder -----------------
   function buildUniqueAvatar(name, gender){
-    // 40% initials to mimic Telegram-style first-letter avatars
     if(Math.random() < 0.4){
       const initials = encodeURIComponent((name||"U").split(" ").map(s=>s[0]||"").slice(0,2).join(""));
       return `https://ui-avatars.com/api/?name=${initials}&background=random&size=256&v=${Math.floor(Math.random()*99999)}`;
@@ -146,16 +156,15 @@
     return getUniqueAvatar(name);
   }
 
-  // ----------------- Persona generator & pool -----------------
+  // ----------------- Persona pool -----------------
   const SyntheticPool = [];
   const TOTAL_PERSONAS = Math.max(400, Math.min((window.REALISM_CONFIG && window.REALISM_CONFIG.TOTAL_PERSONAS) || 2500, 20000));
   const INITIAL_SYNC = Math.min(600, Math.floor(TOTAL_PERSONAS * 0.25));
 
-  // chunked fill to avoid freeze
   for(let i=0;i<INITIAL_SYNC;i++){
     const gender = maybe(0.5) ? "male" : "female";
     const name = buildUniqueName(gender);
-    const persona = {
+    SyntheticPool.push({
       name,
       avatar: buildUniqueAvatar(name, gender),
       isAdmin: false,
@@ -169,8 +178,7 @@
       lastSeen: Date.now() - rand(6000000),
       memory: [],
       sentiment: random(["bullish","neutral","bearish"])
-    };
-    SyntheticPool.push(persona);
+    });
   }
 
   (function fillRemaining(){
@@ -180,7 +188,7 @@
       for(let i=0;i<toDo;i++){
         const gender = maybe(0.5) ? "male" : "female";
         const name = buildUniqueName(gender);
-        const persona = {
+        SyntheticPool.push({
           name,
           avatar: buildUniqueAvatar(name, gender),
           isAdmin: false,
@@ -194,8 +202,7 @@
           lastSeen: Date.now() - rand(6000000),
           memory: [],
           sentiment: random(["bullish","neutral","bearish"])
-        };
-        SyntheticPool.push(persona);
+        });
       }
       if(SyntheticPool.length < TOTAL_PERSONAS) setTimeout(batchFill, 120);
       else console.log("identity-personas: SyntheticPool fully built:", SyntheticPool.length);
@@ -232,7 +239,9 @@
   }
 
   // ----------------- Exports -----------------
-  function getRandomPersona(){ return SyntheticPool.length ? SyntheticPool[Math.floor(Math.random()*SyntheticPool.length)] : { name:"Guest", avatar:"https://ui-avatars.com/api/?name=G" }; }
+  function getRandomPersona(){ 
+    return SyntheticPool.length ? SyntheticPool[Math.floor(Math.random()*SyntheticPool.length)] : { name:"Guest", avatar:"https://ui-avatars.com/api/?name=G" }; 
+  }
 
   window.identity = window.identity || {};
   Object.assign(window.identity, {
