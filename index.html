@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Abrox — Profit Hunters Chat</title>
+  <title>🌐 Profit Hunters Chat</title>
 
   <!-- Theme / favicon -->
   <link rel="icon" href="assets/logo.jpg" />
@@ -14,26 +14,26 @@
   <!-- Lucide icons (lightweight) -->
   <script src="https://cdn.jsdelivr.net/npm/lucide@0.257.0/dist/lucide.min.js" defer></script>
 
-  <!-- Small inline style to ensure body doesn't flash unstyled for a split second -->
+  <!-- Small inline style to ensure body doesn't flash unstyled -->
   <style>html,body{height:100%;background:#07121a;}</style>
 </head>
 <body>
   <!-- App root -->
-  <div id="tg-app" role="application" aria-label="Profit Hunters Chat">
+  <div id="tg-app" role="application" aria-label="🌐 Profit Hunters Chat">
 
     <!-- Header -->
     <header class="tg-header" role="banner">
-      <img src="assets/logo.jpg" alt="Abrox logo" class="tg-logo" />
+      <img src="assets/logo.jpg" alt="Profit Hunters logo" class="tg-logo" />
       <div class="tg-title-box" aria-hidden="false">
-        <div class="tg-title">Abrox — Profit Hunters Chat</div>
+        <div class="tg-title">🌐 Profit Hunters Chat</div>
         <div id="tg-meta-line" class="tg-meta">0 members, 0 online</div>
       </div>
 
       <div class="tg-actions" aria-hidden="true">
-        <button class="tg-icon-btn" title="Search" aria-label="Search">
-          <svg data-lucide="search"></svg>
+        <button class="tg-icon-btn" title="Back" aria-label="Back">
+          <svg data-lucide="arrow-left"></svg>
         </button>
-        <button class="tg-icon-btn" title="More" aria-label="Menu">
+        <button class="tg-icon-btn" title="Menu" aria-label="Menu">
           <svg data-lucide="more-horizontal"></svg>
         </button>
       </div>
@@ -46,7 +46,7 @@
 
     <!-- Comments / chat stream -->
     <main id="tg-comments-container" tabindex="0" aria-live="polite" role="log">
-      <!-- Date stickers, bubbles, join stickers will be appended here by BubbleRenderer/TGRenderer -->
+      <!-- Date stickers, bubbles, join stickers appended by BubbleRenderer -->
     </main>
 
     <!-- Jump indicator (New messages · X) -->
@@ -59,6 +59,9 @@
       <div class="tg-input-pill" role="group" aria-label="Send a message">
         <textarea id="tg-comment-input" placeholder="Message" rows="1" aria-label="Message input"></textarea>
         <div class="tg-input-actions">
+          <button id="tg-emoji-btn" class="tg-emoji-btn" title="Emoji" aria-label="Emoji">
+            <svg data-lucide="smile"></svg>
+          </button>
           <button id="tg-camera-btn" class="tg-camera-btn" title="Attach" aria-label="Attach">
             <svg data-lucide="camera"></svg>
           </button>
@@ -71,35 +74,22 @@
 
   </div>
 
-  <!-- Small accessible live region for announcements (optional) -->
+  <!-- Accessible live region for announcements -->
   <div id="tg-live" aria-live="polite" style="position:absolute;left:-9999px;top:auto;width:1px;height:1px;overflow:hidden;"></div>
 
   <!-- ===== Scripts (load in order) ===== -->
-  <!-- Identity & personas (must load first) -->
   <script src="identity-personas.js" defer></script>
-
-  <!-- Rendering -->
   <script src="bubble-renderer.js" defer></script>
-
-  <!-- Realism engine (posts into renderer) -->
   <script src="realism-engine-v11.js" defer></script>
-
-  <!-- Pin banner manager is embedded in app.js (but if you split you can include separately) -->
   <script src="joiner-simulator.js" defer></script>
   <script src="interactions.js" defer></script>
-
-  <!-- App glue: history loader, seeder, online count, input wiring, postAdminBroadcast -->
   <script src="app.js" defer></script>
 
-  <!-- Optional: extra scripts you might host (analytics, extra widgets) -->
-  <!-- <script src="extra.js" defer></script> -->
-
-  <!-- Initialize lucide icons after all markup (defer above ensures the script is present) -->
+  <!-- Initialize lucide icons -->
   <script>
     (function initLucide(){
       try{
         if(window.lucide && typeof window.lucide.createIcons === 'function'){
-          // Small delay to ensure dynamic elements (icons inside JS-rendered bubbles) are attached later too.
           window.addEventListener('load', ()=> { window.lucide.createIcons(); });
         }
       }catch(e){ console.warn('lucide init failed', e); }
