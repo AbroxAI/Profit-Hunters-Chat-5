@@ -2,16 +2,22 @@
 // Responsible for joiner simulation, join stickers, seeding historical joiners,
 // per-join system messages, sticker bursts, member-count bumps.
 // Idempotent: augments existing window.joiner if present.
-// Visual & persistence fixes applied.
+// Defensive + persistent join history (localStorage).
 // ============================================================
+
 (function(){
+  // if already present, keep a reference to augment
   const existing = window.joiner || null;
 
-  function safeLog(...args){ try{ console.log.apply(console, args); }catch(e){} }
-  function now(){ return new Date(); }
-  function rand(max){ return Math.floor(Math.random()*max); }
-  function randInt(min,max){ return Math.floor(Math.random()*(max-min+1))+min; }
+  // ---------- Utils ----------
+  const safeLog = (...args) => { try { console.log(...args); } catch(e){} };
+  const now = () => new Date();
+  const randInt = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
+  const rand = max => Math.floor(Math.random() * max);
+  const el = id => document.getElementById(id);
+  const safeJSONParse = (s, fallback) => { try { return JSON.parse(s); } catch(e){ return fallback; } };
 
+  // ---------- CONFIG ----------
   const CONFIG = {
     minJoinIntervalMs: 4500,
     maxJoinIntervalMs: 22000,
@@ -21,123 +27,130 @@
     stickerBurstThreshold: 3,
     stickerImage: "assets/join-sticker.png",
     persistKey: "abrox_join_history_v1",
-    maxHistoryKeep: 2000
+    maxHistoryKeep: 2000,
+    defaultAvatarSeedCount: 300
   };
 
-  const JOIN_HISTORY = [];
-  (function loadJoinHistory(){
+  // ---------- Persistence: load/save JOIN_HISTORY ----------
+  const JOIN_HISTORY = (function load(){
     try{
       const raw = localStorage.getItem(CONFIG.persistKey);
-      if(raw){
-        const arr = JSON.parse(raw);
-        if(Array.isArray(arr)) arr.slice(-CONFIG.maxHistoryKeep).forEach(x => JOIN_HISTORY.push(x));
-      }
+      const arr = safeJSONParse(raw, []);
+      if(Array.isArray(arr)) return arr.slice(-CONFIG.maxHistoryKeep);
     }catch(e){}
+    return [];
   })();
+
   function saveJoinHistory(){
-    try{ localStorage.setItem(CONFIG.persistKey, JSON.stringify(JOIN_HISTORY.slice(-CONFIG.maxHistoryKeep))); }catch(e){}
-  }
-  window.addEventListener("beforeunload", saveJoinHistory);
-
-  const LONG_TERM_POOL = []; // placeholder if needed by future features
-
-  function postJoinPersona(persona){
     try{
-      const sysText = `${persona.name} joined the group`;
+      localStorage.setItem(CONFIG.persistKey, JSON.stringify(JOIN_HISTORY.slice(-CONFIG.maxHistoryKeep)));
+    }catch(e){}
+  }
+  window.addEventListener('beforeunload', saveJoinHistory);
+
+  // ---------- DOM helpers ----------
+  const COMMENTS_CONTAINER_ID = "tg-comments-container";
+  function getCommentsContainer(){ return el(COMMENTS_CONTAINER_ID) || document.querySelector('.tg-comments-container'); }
+
+  // ---------- Render helpers ----------
+  function appendSystemMessage(text, ts = new Date()){
+    try{
       if(window.TGRenderer && typeof window.TGRenderer.appendMessage === "function"){
-        window.TGRenderer.appendMessage({ name: "System" }, sysText, { timestamp: new Date(), type: "system" });
-      } else {
-        safeLog("[joiner] sys:", sysText);
+        window.TGRenderer.appendMessage({ name: "System" }, text, { timestamp: ts, type: "system" });
+        return;
       }
-
-      setTimeout(()=> {
-        const adminPersona = { name: "Profit Hunter 🌐", avatar: "assets/admin.jpg" };
-        const welcome = `Welcome @${persona.name.split(" ")[0]} — please verify using the Contact Admin button`;
-        if(window.TGRenderer && typeof window.TGRenderer.appendMessage === "function"){
-          window.TGRenderer.appendMessage(adminPersona, welcome, { timestamp: new Date(), type: "incoming" });
-        } else safeLog("[joiner] welcome:", welcome);
-      }, 600 + rand(900));
-
-      try{
-        window.MEMBER_COUNT = (window.MEMBER_COUNT || 0) + 1;
-        if(window.App && typeof window.App.updateMetaLine === "function") window.App.updateMetaLine();
-        else if(typeof window.updateMetaLine === "function") updateMetaLine();
-      }catch(e){}
-    }catch(e){ safeLog("postJoinPersona error", e); }
+      if(window.BubbleRenderer && typeof window.BubbleRenderer.renderMessages === "function"){
+        window.BubbleRenderer.renderMessages([ { id: "sys_"+Date.now()+"_"+rand(9999), name: "System", avatar: null, text, time: ts.toISOString(), isOwn: false, type: "system" } ]);
+        return;
+      }
+      safeLog("[joiner] system:", text);
+    }catch(e){ safeLog("appendSystemMessage error", e); }
   }
 
-  function showJoinSticker(persona, opts = { inline: true, stickerImage: CONFIG.stickerImage }){
+  function appendIncomingMessage(persona, text, opts = {}){
     try{
-      const container = document.getElementById("tg-comments-container");
+      if(window.TGRenderer && typeof window.TGRenderer.appendMessage === "function"){
+        window.TGRenderer.appendMessage(persona, text, Object.assign({ timestamp: new Date(), type: "incoming" }, opts));
+        return;
+      }
+      if(window.BubbleRenderer && typeof window.BubbleRenderer.renderMessages === "function"){
+        const msg = { id: opts.id || "j_"+Date.now()+"_"+rand(9999), name: persona.name, avatar: persona.avatar, text, time: (opts.timestamp || new Date()).toISOString(), isOwn: false };
+        window.BubbleRenderer.renderMessages([ msg ]);
+        return;
+      }
+      safeLog("[joiner] incoming:", persona.name, text);
+    }catch(e){ safeLog("appendIncomingMessage error", e); }
+  }
+
+  // show visual join sticker inside the comments container (non-blocking)
+  function showJoinSticker(persona, opts = { stickerImage: CONFIG.stickerImage }){
+    try{
+      const container = getCommentsContainer();
       if(!container) return;
-      const stickerWrap = document.createElement("div");
-      stickerWrap.className = "tg-join-sticker-wrapper";
-      stickerWrap.style.display = 'flex';
-      stickerWrap.style.justifyContent = 'center';
-      stickerWrap.style.padding = '8px 0';
+      const wrapper = document.createElement('div');
+      wrapper.className = 'tg-join-sticker-wrapper';
+      wrapper.setAttribute('role','status');
+      wrapper.style.display = 'flex';
+      wrapper.style.alignItems = 'center';
+      wrapper.style.gap = '10px';
+      wrapper.style.margin = '8px 12px';
 
-      const sticker = document.createElement("div");
-      sticker.className = "tg-join-sticker";
-      sticker.style.display = 'flex';
-      sticker.style.alignItems = 'center';
-      sticker.style.gap = '10px';
-      sticker.style.background = 'rgba(255,255,255,0.02)';
-      sticker.style.padding = '8px 12px';
-      sticker.style.borderRadius = '10px';
-      sticker.style.maxWidth = '86%';
-
-      const avatar = document.createElement("img");
-      avatar.className = "tg-join-sticker-avatar";
-      avatar.src = persona.avatar || (`https://ui-avatars.com/api/?name=${encodeURIComponent(persona.name||"U")}&background=random`);
-      avatar.style.width = '40px';
-      avatar.style.height = '40px';
+      const avatar = document.createElement('img');
+      avatar.src = persona.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(persona.name)}&background=random`;
+      avatar.alt = persona.name;
+      avatar.style.width = '44px';
+      avatar.style.height = '44px';
       avatar.style.borderRadius = '50%';
-      avatar.onerror = function(){ this.onerror = null; try{ this.src = `https://ui-avatars.com/api/?name=${encodeURIComponent((persona.name||"U").split(" ").slice(0,2).join(" "))}&background=random`; }catch(e){ this.src = "https://picsum.photos/seed/j/48/48"; } };
+      avatar.style.objectFit = 'cover';
+      avatar.onerror = function(){ this.onerror = null; this.src = `https://picsum.photos/seed/j${rand(9999)}/48/48`; };
 
-      const content = document.createElement("div");
-      content.style.display = 'flex';
-      content.style.flexDirection = 'column';
-
-      const title = document.createElement("div"); title.className = "tg-join-sticker-title"; title.textContent = persona.name + " joined";
-      const sub = document.createElement("div"); sub.className = "tg-join-sticker-sub"; sub.textContent = "Welcome to the group — check the pinned message for rules";
+      const txtWrap = document.createElement('div');
+      const title = document.createElement('div');
+      title.textContent = `${persona.name} joined`;
       title.style.fontWeight = '600';
-      sub.style.fontSize = '13px';
+      title.style.fontSize = '13px';
+      const sub = document.createElement('div');
+      sub.textContent = 'Welcome to the group — check the pinned message for rules';
+      sub.style.fontSize = '12px';
       sub.style.opacity = '0.85';
+      txtWrap.appendChild(title);
+      txtWrap.appendChild(sub);
 
-      content.appendChild(title); content.appendChild(sub);
-      sticker.appendChild(avatar); sticker.appendChild(content);
-
+      // optional sticker image on right
       if(opts.stickerImage){
-        const side = document.createElement("img");
-        side.className = "tg-join-sticker-image";
-        side.src = opts.stickerImage;
-        side.style.width = '60px';
-        side.style.height = '60px';
-        side.style.objectFit = 'cover';
-        side.style.borderRadius = '8px';
-        side.onerror = function(){ this.style.display = 'none'; };
-        sticker.appendChild(side);
+        const sticker = document.createElement('img');
+        sticker.src = opts.stickerImage;
+        sticker.alt = 'joined';
+        sticker.style.width = '56px';
+        sticker.style.height = '56px';
+        sticker.style.objectFit = 'contain';
+        sticker.onerror = function(){ this.style.display = 'none'; };
+        wrapper.appendChild(avatar);
+        wrapper.appendChild(txtWrap);
+        wrapper.appendChild(sticker);
+      } else {
+        wrapper.appendChild(avatar);
+        wrapper.appendChild(txtWrap);
       }
 
-      stickerWrap.appendChild(sticker);
-      container.appendChild(stickerWrap);
+      container.appendChild(wrapper);
       container.scrollTop = container.scrollHeight;
+      wrapper.style.opacity = '0';
+      wrapper.style.transform = 'translateY(6px)';
+      requestAnimationFrame(()=>{ wrapper.style.transition = 'all 260ms ease'; wrapper.style.opacity = '1'; wrapper.style.transform = 'translateY(0)'; });
 
-      // subtle entrance (CSS-friendly)
-      stickerWrap.style.opacity = 0;
-      stickerWrap.style.transform = "translateY(6px)";
-      requestAnimationFrame(()=>{ stickerWrap.style.transition = "all 260ms ease"; stickerWrap.style.opacity = 1; stickerWrap.style.transform = "translateY(0)"; });
-
-      // remove sticker after a while
-      setTimeout(()=>{ try{ if(stickerWrap && stickerWrap.parentNode) stickerWrap.parentNode.removeChild(stickerWrap); }catch(e){} }, 5200 + rand(2200));
+      // remove after some time
+      setTimeout(()=>{ try{ if(wrapper && wrapper.parentNode) wrapper.parentNode.removeChild(wrapper); }catch(e){} }, 6500 + randInt(0,2200));
     }catch(e){ safeLog("showJoinSticker error", e); }
   }
 
+  // ---------- Persona generation ----------
   function genPersona(){
     try{
-      if(window.identity && typeof window.identity.getRandomPersona === "function"){
+      if(window.identity && typeof window.identity.getRandomPersona === 'function'){
         const p = window.identity.getRandomPersona();
-        if(!p.name) p.name = "User" + rand(9999);
+        p.name = p.name || ("User" + rand(99999));
+        p.avatar = p.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(p.name)}&background=random`;
         return p;
       }
       const n = "User" + rand(99999);
@@ -147,29 +160,66 @@
     }
   }
 
+  // ---------- Main join logic ----------
+  let running = false;
+  let joinTimer = null;
+  let joinBurstCooldown = false;
+
+  function recordJoinHistory(entry){
+    try{
+      JOIN_HISTORY.push(entry);
+      if(JOIN_HISTORY.length > CONFIG.maxHistoryKeep) JOIN_HISTORY.shift();
+      // persist immediately to reduce lost state
+      saveJoinHistory();
+    }catch(e){ safeLog("recordJoinHistory error", e); }
+  }
+
+  function postJoinPersona(persona){
+    try{
+      // system message
+      appendSystemMessage(`${persona.name} joined the group`, new Date());
+
+      // small welcome from admin/bot
+      setTimeout(()=> {
+        appendIncomingMessage({ name: "Profit Hunter 🌐", avatar: "assets/admin.jpg" }, `Welcome @${persona.name.split(" ")[0]} — please verify using the Contact Admin button`, { timestamp: new Date() });
+      }, 600 + randInt(0,900));
+
+      // bump member count if present
+      try{
+        window.MEMBER_COUNT = (window.MEMBER_COUNT || 0) + 1;
+        if(typeof window.App === 'object' && typeof window.App.updateMetaLine === 'function') window.App.updateMetaLine();
+        else if(typeof window.updateMetaLine === 'function') window.updateMetaLine();
+      }catch(e){}
+    }catch(e){ safeLog("postJoinPersona error", e); }
+  }
+
   function joinNow(count = 1, opts = { showSticker: true }){
     try{
-      const perDelay = 420 + rand(900);
+      const perDelay = 420 + randInt(0,900);
       for(let i=0;i<count;i++){
         (function(i){
           setTimeout(()=>{
-            const persona = genPersona();
             try{
-              JOIN_HISTORY.push({ id: "j_"+Date.now()+"_"+rand(99999), name: persona.name, time: new Date().toISOString() });
-              if(JOIN_HISTORY.length > CONFIG.maxHistoryKeep) JOIN_HISTORY.shift();
-              saveJoinHistory();
-            }catch(e){}
-            postJoinPersona(persona);
-            if(opts.showSticker && (count >= CONFIG.stickerBurstThreshold || i === Math.floor(count/2))){
-              showJoinSticker(persona, { stickerImage: CONFIG.stickerImage });
-            }
+              const persona = genPersona();
+              const id = "j_"+Date.now()+"_"+rand(99999);
+              const timeISO = new Date().toISOString();
+              // record history
+              try{ recordJoinHistory({ id, name: persona.name, avatar: persona.avatar, time: timeISO }); }catch(e){}
+              // system and welcome messages
+              postJoinPersona(persona);
+              // show sticker when burst or explicitly requested
+              if(opts.showSticker && (count >= CONFIG.stickerBurstThreshold || i === Math.floor(count/2))){
+                showJoinSticker(persona, { stickerImage: CONFIG.stickerImage });
+              }
+            }catch(e){ safeLog("joinNow inner error", e); }
           }, i * perDelay);
         })(i);
       }
     }catch(e){ safeLog("joinNow failed", e); }
   }
 
-  async function seedJoinersBetween(startDate, endDate, opts = { minPerDay:1, maxPerDay:4, chunkSize: 120 }){
+  // seed historical joiners between dates (chronological seeding)
+  async function seedJoinersBetween(startDate, endDate, opts = { minPerDay: 1, maxPerDay: 4, chunkSize: 120 }){
     try{
       const start = new Date(startDate);
       const end = new Date(endDate);
@@ -178,18 +228,32 @@
       let posted = 0;
       let batch = 0;
       for(let d=0; d<days; d++){
-        const day = new Date(start.getTime() + d*24*60*60*1000);
+        const day = new Date(start.getTime() + d * 24*60*60*1000);
         const perDay = randInt(opts.minPerDay, opts.maxPerDay);
         for(let i=0;i<perDay;i++){
-          const ts = new Date(day.getTime() + Math.floor(Math.random()*24*60*60*1000));
+          const ts = new Date(day.getTime() + Math.floor(Math.random() * 24*60*60*1000));
           const persona = genPersona();
-          if(window.TGRenderer && typeof window.TGRenderer.appendMessage === "function"){
-            window.TGRenderer.appendMessage({ name: "System" }, `${persona.name} joined the group`, { timestamp: ts, type: "system" });
-            window.TGRenderer.appendMessage({ name: "Profit Hunter 🌐", avatar: "assets/admin.jpg" }, `Welcome @${persona.name.split(" ")[0]} — verify using Contact Admin`, { timestamp: new Date(ts.getTime() + 60000), type: "incoming" });
-          }
-          try{ JOIN_HISTORY.push({ id: "h_j_"+Date.now()+"_"+rand(99999), name: persona.name, time: ts.toISOString() }); if(JOIN_HISTORY.length > CONFIG.maxHistoryKeep) JOIN_HISTORY.shift(); }catch(e){}
+          // append system + welcome at timestamp
+          try{
+            if(window.TGRenderer && typeof window.TGRenderer.appendMessage === "function"){
+              window.TGRenderer.appendMessage({ name: "System" }, `${persona.name} joined the group`, { timestamp: ts, type: "system" });
+              window.TGRenderer.appendMessage({ name: "Profit Hunter 🌐", avatar: "assets/admin.jpg" }, `Welcome @${persona.name.split(" ")[0]} — verify using Contact Admin`, { timestamp: new Date(ts.getTime() + 60000), type: "incoming" });
+            } else if(window.BubbleRenderer && typeof window.BubbleRenderer.renderMessages === "function"){
+              window.BubbleRenderer.renderMessages([ { id: "seedjoin_"+d+"_"+i, name: "System", avatar: null, text: `${persona.name} joined the group`, time: ts.toISOString(), isOwn: false, type: "system" } ]);
+              window.BubbleRenderer.renderMessages([ { id: "seedjoinadmin_"+d+"_"+i, name: "Profit Hunter 🌐", avatar: "assets/admin.jpg", text: `Welcome @${persona.name.split(" ")[0]} — verify using Contact Admin`, time: new Date(ts.getTime()+60000).toISOString(), isOwn:false } ]);
+            } else {
+              // fallback logging
+              safeLog("[seedJoin] system", persona.name, ts.toISOString());
+            }
+            // record to history
+            JOIN_HISTORY.push({ id: "h_j_"+Date.now()+"_"+rand(99999), name: persona.name, time: ts.toISOString() });
+            if(JOIN_HISTORY.length > CONFIG.maxHistoryKeep) JOIN_HISTORY.shift();
+          }catch(e){ safeLog("seedJoin append error", e); }
           posted++; batch++;
-          if(batch >= opts.chunkSize){ await new Promise(r => setTimeout(r, 120)); batch = 0; }
+          if(batch >= (opts.chunkSize || 120)){
+            await new Promise(r => setTimeout(r, 120));
+            batch = 0;
+          }
         }
       }
       saveJoinHistory();
@@ -198,50 +262,55 @@
     }catch(e){ safeLog("seedJoinersBetween failed", e); return 0; }
   }
 
-  // background tick
-  let running = false;
-  let joinTimer = null;
-  let joinBurstCooldown = false;
+  // ---------- Background tick (auto joins) ----------
   function _tick(){
     if(!running) return;
     try{
       if(Math.random() < CONFIG.burstChance && !joinBurstCooldown){
         const c = randInt(CONFIG.burstMin, CONFIG.burstMax);
-        joinNow(c);
+        joinNow(c, { showSticker: true });
         joinBurstCooldown = true;
-        setTimeout(()=> joinBurstCooldown = false, 18000 + rand(12000));
+        setTimeout(()=> joinBurstCooldown = false, 18000 + randInt(0,12000));
       } else {
-        if(Math.random() < 0.22) joinNow(1);
+        if(Math.random() < 0.22) joinNow(1, { showSticker: false });
       }
-    }catch(e){}
-    const next = CONFIG.minJoinIntervalMs + Math.floor(Math.random()*(CONFIG.maxJoinIntervalMs - CONFIG.minJoinIntervalMs));
-    joinTimer = setTimeout(_tick, next);
+      const next = CONFIG.minJoinIntervalMs + Math.floor(Math.random() * (CONFIG.maxJoinIntervalMs - CONFIG.minJoinIntervalMs));
+      joinTimer = setTimeout(_tick, next);
+    }catch(e){ safeLog("_tick error", e); joinTimer = setTimeout(_tick, CONFIG.maxJoinIntervalMs); }
   }
 
   function start(){
     if(running) return;
-    running = true; _tick(); safeLog('joiner started');
+    running = true;
+    // warm up: small initial activity
+    setTimeout(()=> { try{ _tick(); }catch(e){ safeLog("start tick error", e); } }, 600 + randInt(0,800));
+    safeLog("joiner started");
   }
-  function stop(){
-    running = false; if(joinTimer) clearTimeout(joinTimer); joinTimer = null; safeLog('joiner stopped');
-  }
-  function isRunning(){ return running; }
 
+  function stop(){
+    running = false;
+    if(joinTimer) clearTimeout(joinTimer);
+    joinTimer = null;
+    safeLog("joiner stopped");
+  }
+
+  // ---------- Public API ----------
   const api = {
-    start, stop, joinNow, isRunning,
+    start,
+    stop,
+    joinNow,
+    isRunning: () => running,
     seedJoinersBetween,
-    seedMarch14_2025: function(opts = { minPerDay: 1, maxPerDay: 4, chunkSize: 120 }){
-      try{
-        const s = new Date("2025-03-14T00:00:00Z");
-        return seedJoinersBetween(s, new Date(), opts);
-      }catch(e){ safeLog("seedMarch14_2025 failed", e); return Promise.resolve(0); }
-    },
-    getHistorySnapshot: function(){ return JOIN_HISTORY.slice().reverse().slice(0,200); },
-    config: CONFIG
+    getHistorySnapshot: function(){ return JOIN_HISTORY.slice().reverse().slice(0, 200); },
+    _debugSticker: function(){ const p = genPersona(); showJoinSticker(p, { stickerImage: CONFIG.stickerImage }); return p; },
+    config: Object.assign({}, CONFIG)
   };
 
-  if(existing){
+  // ---------- Merge with existing joiner if present ----------
+  if(existing && typeof existing === 'object'){
+    // copy missing methods only
     Object.keys(api).forEach(k => { if(!existing[k]) existing[k] = api[k]; });
+    // keep global pointing to existing
     window.joiner = existing;
     safeLog("joiner-simulator augmented existing joiner");
   } else {
@@ -249,10 +318,8 @@
     safeLog("joiner-simulator initialized");
   }
 
-  window.joiner._debugSticker = function(){
-    const p = genPersona();
-    showJoinSticker(p, { stickerImage: CONFIG.stickerImage });
-    return p;
-  };
+  // expose save/load helpers for debugging
+  window.joiner._saveHistory = saveJoinHistory;
+  window.joiner._getRawHistory = () => JOIN_HISTORY.slice();
 
 })();
