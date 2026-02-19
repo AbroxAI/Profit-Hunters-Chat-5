@@ -1,376 +1,384 @@
 /* widget.css
-   Abrox — Profit Hunters Chat
-   Comprehensive UI styles for Telegram-like glass look
+   Profit Hunters — Chat widget styles
+   - Light / dark themes via [data-theme] on <html>
+   - Sticky pin banner, telegram-like bubbles, rounded avatars
+   - Typing preview, join sticker, jump indicator, context menu, reaction pills
 */
 
-/* ===================== variables ===================== */
-:root{
-  --tg-bg: #07121a;            /* very dark bg */
-  --tg-panel: rgba(20,32,42,0.72);
-  --tg-glass: rgba(255,255,255,0.03);
-  --tg-accent: #2ea6ff;        /* blue accent for CTAs */
-  --tg-text: #e6f0f6;
-  --tg-muted: #9aa7bd;
-  --tg-incoming-bg: #182533;   /* dark incoming bubble */
-  --tg-outgoing-bg: #2b5278;   /* outgoing bubble */
-  --tg-border: rgba(255,255,255,0.04);
-  --tg-header-height: 64px;
-  --tg-radius-lg: 14px;
-  --tg-radius-sm: 8px;
-  --tg-shadow: 0 6px 18px rgba(0,0,0,0.35);
-  font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+/* ---------------------------
+   Theme variables (light)
+   --------------------------- */
+:root {
+  --bg: #f7f9fb;
+  --surface: #ffffff;
+  --muted: #9aa4b2;
+  --text: #0f1720;
+  --accent: #2a8df6;           /* telegram blue */
+  --accent-600: #1f6fe0;
+  --danger: #e63946;
+  --success: #16a34a;
+  --glass: rgba(255,255,255,0.6);
+  --shadow-sm: 0 6px 18px rgba(15,20,30,0.06);
+  --shadow-md: 0 10px 30px rgba(15,20,30,0.08);
+  --bubble-incoming: #ffffff;
+  --bubble-outgoing: linear-gradient(135deg,#2a8df6,#1f6fe0);
+  --bubble-incoming-text: #0f1720;
+  --bubble-outgoing-text: #fff;
+  --pin-bg: #fffbe6;
+  --pin-border: rgba(42,141,246,0.12);
+  --avatar-size: 44px;
+  --avatar-radius: 12px;
+  --bubble-radius: 14px;
+  --bubble-tail-size: 8px;
+  --meta-font-size: 13px;
+  --ui-radius: 10px;
+  --input-height: 44px;
 }
 
-/* ===================== layout ===================== */
-body {
-  margin: 0;
-  background: linear-gradient(180deg, var(--tg-bg), #041018 120%);
-  color: var(--tg-text);
+/* ---------------------------
+   Dark theme overrides
+   --------------------------- */
+:root[data-theme="dark"] {
+  --bg: #0b1220;
+  --surface: #071123;
+  --muted: #9aa4b2;
+  --text: #e6eef6;
+  --accent: #2a8df6;
+  --accent-600: #1b6bd6;
+  --danger: #ff6b6b;
+  --success: #2dd4bf;
+  --glass: rgba(255,255,255,0.04);
+  --shadow-sm: 0 6px 18px rgba(0,0,0,0.45);
+  --shadow-md: 0 10px 30px rgba(0,0,0,0.55);
+  --bubble-incoming: #071226;
+  --bubble-outgoing: linear-gradient(135deg,#2a8df6,#1b6bd6);
+  --bubble-incoming-text: #e6eef6;
+  --bubble-outgoing-text: #fff;
+  --pin-bg: rgba(42,141,246,0.06);
+  --pin-border: rgba(42,141,246,0.18);
+  --avatar-radius: 10px;
+}
+
+/* ---------------------------
+   Global layout
+   --------------------------- */
+html,body{
+  height:100%;
+  background:var(--bg);
+  color:var(--text);
   -webkit-font-smoothing:antialiased;
   -moz-osx-font-smoothing:grayscale;
-}
-
-/* main container */
-#tg-app {
-  display:flex;
-  flex-direction:column;
-  height:100vh;
-  width:100%;
-  gap:8px;
-  padding: 12px;
-  box-sizing: border-box;
-}
-
-/* header */
-.tg-header {
-  display:flex;
-  align-items:center;
-  gap:12px;
-  height:var(--tg-header-height);
-  padding:8px 12px;
-  background: transparent;
-}
-.tg-header .tg-logo {
-  width:44px; height:44px; border-radius:10px; object-fit:cover; flex-shrink:0;
-}
-.tg-header .tg-title-box {
-  display:flex; flex-direction:column; min-width:0;
-}
-.tg-header .tg-title {
-  font-weight:800;
-  font-size:18px;
-  line-height:1;
-  color:var(--tg-text);
-  white-space:nowrap;
-  overflow:hidden;
-  text-overflow:ellipsis;
-}
-.tg-header .tg-meta {
-  font-size:12px;
-  color:var(--tg-muted);
-  margin-top:3px;
-}
-
-/* header right icons */
-.tg-header .tg-actions {
-  margin-left:auto;
-  display:flex;
-  gap:8px;
-  align-items:center;
-}
-.tg-header .tg-icon-btn {
-  width:36px; height:36px; display:flex; align-items:center; justify-content:center;
-  background:var(--tg-glass); border-radius:10px; border:1px solid var(--tg-border); cursor:pointer;
-}
-
-/* ===================== pin banner (telegram-style) ===================== */
-.tg-pin-banner {
-  display:flex;
-  align-items:center;
-  gap:12px;
-  padding:8px 12px;
-  background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.02));
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  border-radius:14px;
-  color:var(--tg-text);
-  font-size:13px;
-  position:sticky;
-  top:calc(var(--tg-header-height) + 8px);
-  z-index:55;
-  max-width:96%;
-  margin:10px auto;
-  transform:translateY(-8px);
-  opacity:0;
-  transition:all 260ms cubic-bezier(.22,.9,.37,1);
-  box-shadow: var(--tg-shadow);
-  height:48px;
-  align-items:center;
-  overflow:hidden;
-}
-.tg-pin-banner.show{ transform:translateY(0); opacity:1; }
-.tg-pin-banner .pin-thumb{ width:40px; height:40px; border-radius:8px; object-fit:cover; flex-shrink:0; }
-.tg-pin-banner .pin-body{ flex:1; min-width:0; display:flex; flex-direction:column; justify-content:center; gap:2px; }
-.tg-pin-banner .pin-title{ font-weight:700; font-size:13px; color:var(--tg-text); line-height:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.tg-pin-banner .pin-excerpt{ font-size:12px; color:var(--tg-muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.tg-pin-banner .pin-actions{ display:flex; gap:8px; align-items:center; margin-left:8px; }
-.tg-pin-banner .pin-btn{ background:transparent; border:none; padding:6px; border-radius:8px; cursor:pointer; color:var(--tg-muted); display:flex; align-items:center; gap:6px; }
-.tg-pin-banner .pin-count{ font-size:12px; color:var(--tg-muted); padding:4px 8px; border-radius:12px; background: rgba(255,255,255,0.02); }
-.tg-pin-banner .contact-admin-btn{ height:34px; padding:6px 12px; border-radius:18px; background:var(--tg-accent); color:#fff; font-weight:700; border:0; box-shadow:0 6px 16px rgba(46,166,255,0.12); cursor:pointer; }
-
-/* ===================== comments container ===================== */
-#tg-comments-container {
-  flex:1 1 auto;
-  overflow:auto;
-  padding: 10px 12px 20px 12px;
-  box-sizing:border-box;
-  display:flex;
-  flex-direction:column;
-  gap:10px;
-  scroll-behavior:smooth;
-}
-
-/* date sticker */
-.tg-date-sticker {
-  display:inline-block;
-  align-self:center;
-  background: rgba(255,255,255,0.03);
-  padding:6px 12px;
-  border-radius:20px;
-  color:var(--tg-muted);
-  font-size:12px;
-  box-shadow: none;
-}
-
-/* system message */
-.tg-system-message { display:flex; justify-content:center; }
-.tg-system-message .sys-inner {
-  background: rgba(255,255,255,0.02);
-  color: var(--tg-muted);
-  padding:8px 12px; border-radius:12px; font-size:13px;
-}
-
-/* ===================== bubbles ===================== */
-.tg-bubble {
-  display:flex;
-  gap:10px;
-  align-items:flex-end;
-  max-width:95%;
-  width:auto;
-}
-.tg-bubble.incoming { align-self:flex-start; }
-.tg-bubble.outgoing { align-self:flex-end; flex-direction:row-reverse; }
-
-/* avatar */
-.tg-bubble-avatar {
-  width:40px; height:40px; border-radius:8px; object-fit:cover; flex-shrink:0;
-}
-
-/* content */
-.tg-bubble-content {
-  max-width:76%;
-  background: var(--tg-incoming-bg);
-  color:var(--tg-text);
-  padding:8px 12px;
-  border-radius:12px;
-  position:relative;
-  box-shadow: 0 4px 14px rgba(0,0,0,0.28);
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
   font-size:14px;
-  line-height:1.4;
-}
-.tg-bubble.outgoing .tg-bubble-content { background: var(--tg-outgoing-bg); }
-
-/* tail (visual spacing via pseudo element on content) */
-.tg-bubble.incoming .tg-bubble-content::before{
-  content:"";
-  position:absolute;
-  left:-6px;
-  bottom:8px;
-  width:12px; height:12px;
-  background: var(--tg-incoming-bg);
-  transform: rotate(45deg);
-  border-radius:2px;
-  z-index:0;
-}
-.tg-bubble.outgoing .tg-bubble-content::before{
-  content:"";
-  position:absolute;
-  right:-6px;
-  bottom:8px;
-  width:12px; height:12px;
-  background: var(--tg-outgoing-bg);
-  transform: rotate(45deg);
-  border-radius:2px;
-  z-index:0;
+  line-height:1.3;
+  margin:0;
 }
 
-/* ensure tail doesn't overlap avatar — we space content by 6px */
-.tg-bubble .tg-bubble-content { margin-bottom:2px; z-index:1; }
-
-/* sender name above bubble */
-.tg-bubble-sender { font-weight:700; font-size:13px; margin-bottom:6px; color:var(--tg-text); }
-
-/* message text */
-.tg-bubble-text { white-space:pre-wrap; word-break:break-word; color:var(--tg-text); }
-
-/* image in bubble */
-.tg-bubble-image {
-  width:240px; max-width:72%; height:auto; border-radius:10px; margin-top:6px; object-fit:cover; display:block;
-}
-
-/* reply preview */
-.tg-reply-preview {
-  background: rgba(255,255,255,0.02);
-  padding:6px 8px;
-  border-radius:8px;
-  font-size:12px;
-  color:var(--tg-muted);
-  cursor:pointer;
-  margin-bottom:6px;
-  overflow:hidden;
-  text-overflow:ellipsis;
-  white-space:nowrap;
-}
-
-/* meta area (time, seen) */
-.tg-bubble-meta { display:flex; gap:6px; align-items:center; margin-top:8px; justify-content:flex-end; }
-.tg-bubble-meta span{ font-size:11px; color:var(--tg-muted); }
-.tg-bubble-meta .seen { display:flex; gap:6px; align-items:center; color:var(--tg-muted); font-size:11px; }
-
-/* reactions */
-.tg-reactions { margin-top:8px; display:flex; gap:6px; flex-wrap:wrap; }
-.tg-reactions .reaction-pill {
-  padding:4px 8px; font-size:12px; border-radius:12px; background: rgba(255,255,255,0.03); color:var(--tg-text);
-}
-
-/* highlight used when pin clicked */
-.tg-highlight {
-  animation: tg-highlight-anim 2.6s ease both;
-  box-shadow: 0 0 0 3px rgba(255,215,0,0.16) inset;
-  border-radius:12px;
-}
-@keyframes tg-highlight-anim {
-  0% { box-shadow: 0 0 0 6px rgba(255,215,0,0.32) inset; transform: translateY(-2px); }
-  50% { box-shadow: 0 0 0 2px rgba(255,215,0,0.18) inset; transform: translateY(0); }
-  100% { box-shadow: 0 0 0 0 rgba(255,215,0,0) inset; transform: translateY(0); }
-}
-
-/* ===================== join sticker ===================== */
-.tg-join-sticker-wrapper {
-  display:flex;
-  justify-content:center;
-  width:100%;
-  margin:10px 0;
-  pointer-events:none;
-}
-.tg-join-sticker {
+/* Main shell */
+.tg-header{
   display:flex;
   align-items:center;
-  gap:12px;
-  padding:10px 12px;
-  border-radius:14px;
-  background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.02));
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  box-shadow: 0 6px 18px rgba(0,0,0,0.18);
-  max-width: 86%;
-  color: var(--tg-text);
-  font-size: 13px;
-  align-items:center;
-}
-.tg-join-sticker-left { display:flex; align-items:center; gap:8px; }
-.tg-join-sticker-avatar { width:44px; height:44px; border-radius:10px; object-fit:cover; flex-shrink:0; }
-.tg-join-sticker-right { display:flex; flex-direction:column; min-width:0; }
-.tg-join-sticker-title { font-weight:700; font-size:13px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.tg-join-sticker-sub { font-size:12px; color: var(--tg-muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.tg-join-sticker-image { width:48px; height:48px; border-radius:10px; object-fit:cover; margin-left:8px; flex-shrink:0; }
-
-/* ===================== jump indicator ===================== */
-#tg-jump-indicator {
-  position:fixed;
-  bottom:86px;
-  left:50%;
-  transform:translateX(-50%);
-  z-index:60;
-  background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.02));
-  padding:8px 12px;
-  border-radius:18px;
-  color:var(--tg-text);
-  font-size:13px;
-  box-shadow: var(--tg-shadow);
-}
-#tg-jump-indicator.hidden{ display:none; }
-
-/* ===================== input bar (floating pill) ===================== */
-.tg-input-wrap {
-  position:fixed;
-  bottom:18px;
-  left:50%;
-  transform:translateX(-50%);
-  width:min(980px, calc(100% - 40px));
-  z-index:70;
-  display:flex;
-  gap:10px;
-  align-items:flex-end;
   justify-content:space-between;
+  padding:10px 14px;
+  background:transparent;
+  position:sticky;
+  top:0;
+  z-index:50;
+  backdrop-filter: blur(6px);
 }
-.tg-input-pill {
-  display:flex;
-  align-items:center;
-  gap:8px;
-  background: rgba(255,255,255,0.02);
-  padding:10px 12px;
-  border-radius:28px;
-  width:100%;
-  box-shadow: 0 8px 30px rgba(0,0,0,0.36);
-  border: 1px solid var(--tg-border);
+.tg-header-left{ display:flex; align-items:center; gap:12px; }
+.tg-avatar img{
+  width:48px; height:48px; border-radius:12px; object-fit:cover; display:block;
+  box-shadow: var(--shadow-sm);
+  border: 1px solid rgba(0,0,0,0.04);
 }
-#tg-comment-input {
-  flex:1;
+.tg-title{ font-weight:700; font-size:16px; }
+.tg-meta-line{ font-size:var(--meta-font-size); color:var(--muted); }
+
+/* header right buttons */
+.tg-icon-btn, .tg-ghost-btn{
   background:transparent;
   border:0;
-  outline:none;
-  color:var(--tg-text);
-  font-size:14px;
-  line-height:1.4;
-  resize:none;
-  min-height:36px;
-  max-height:120px;
-}
-.tg-input-actions { display:flex; gap:8px; align-items:center; }
-
-/* camera & send */
-.tg-camera-btn { width:44px; height:44px; border-radius:10px; display:flex; align-items:center; justify-content:center; cursor:pointer; background:var(--tg-glass); border:1px solid var(--tg-border); }
-.tg-send-btn { width:44px; height:44px; border-radius:10px; display:flex; align-items:center; justify-content:center; cursor:pointer; background:var(--tg-accent); color:#fff; font-weight:700; border:0; box-shadow:0 8px 24px rgba(46,166,255,0.12); }
-.tg-send-btn.hidden{ display:none; }
-
-/* glass button inside bubbles */
-.tg-glass-button {
-  padding:8px 12px;
-  border-radius:14px;
-  border:1px solid rgba(255,255,255,0.04);
-  background: rgba(255,255,255,0.02);
-  color:var(--tg-text);
+  padding:8px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  border-radius:10px;
+  color:var(--text);
   cursor:pointer;
-  font-weight:700;
+}
+.tg-icon-btn:hover, .tg-ghost-btn:hover{ background:var(--glass); }
+
+.tg-main{ display:flex; flex-direction:column; height: calc(100vh - 140px); /* header + composer space approx */ }
+
+/* comments wrapper */
+.tg-comments-wrapper{
+  display:flex; flex-direction:column; height:100%;
+  max-height:100%;
+}
+.tg-comments-container{
+  overflow:auto;
+  padding:14px;
+  padding-bottom:32px;
+  flex:1 1 auto;
 }
 
-/* small misc */
-.tg-bubble-image{ background:#0e1a22; }
-.tg-reply-preview:hover{ background: rgba(255,255,255,0.04); }
-.tg-bubble .tg-reactions .reaction-pill:hover { transform: translateY(-2px); transition: 120ms ease; }
+/* Jump indicator */
+.tg-jump-indicator{
+  position: fixed;
+  right: 18px;
+  bottom: 88px;
+  display:inline-flex;
+  gap:8px;
+  align-items:center;
+  padding:8px 12px;
+  border-radius:999px;
+  background:var(--accent);
+  color:#fff;
+  box-shadow:var(--shadow-md);
+  border:0;
+  cursor:pointer;
+  transform:translateY(0);
+  transition:transform .18s ease, opacity .18s ease;
+}
+.tg-jump-indicator.hidden{ opacity:0; pointer-events:none; transform:translateY(12px); }
+.tg-jump-indicator .tg-jump-count{ background:rgba(255,255,255,0.12); padding:4px 8px; border-radius:999px; font-weight:700; }
 
-/* lucide icons sizing */
-svg[data-lucide] { width:16px; height:16px; vertical-align:middle; }
+/* message bubbles layout */
+.tg-bubble{
+  display:flex;
+  gap:10px;
+  margin:8px 0;
+  align-items:flex-end;
+  max-width: 92%;
+  position:relative;
+}
+.tg-bubble.incoming{ align-self:flex-start; }
+.tg-bubble.outgoing{ align-self:flex-end; justify-content:flex-end; }
+.tg-bubble .tg-bubble-avatar img{
+  width:var(--avatar-size); height:var(--avatar-size); border-radius:var(--avatar-radius); object-fit:cover;
+  box-shadow:var(--shadow-sm);
+  flex-shrink:0;
+}
+
+/* bubble content */
+.tg-bubble-content{
+  padding:10px 12px;
+  border-radius: var(--bubble-radius);
+  background:var(--bubble-incoming);
+  color:var(--bubble-incoming-text);
+  box-shadow: var(--shadow-sm);
+  position:relative;
+  font-size:14px;
+  word-break:break-word;
+}
+
+/* outgoing style */
+.tg-bubble.outgoing .tg-bubble-content{
+  background: var(--bubble-outgoing);
+  color: var(--bubble-outgoing-text);
+  border-radius: var(--bubble-radius);
+}
+
+/* bubble tail - simple triangle via pseudo-element */
+.tg-bubble.incoming .tg-bubble-content::after{
+  content: "";
+  position:absolute;
+  left:-6px;
+  top:12px;
+  width:0; height:0;
+  border-top:8px solid transparent;
+  border-bottom:8px solid transparent;
+  border-right:8px solid var(--bubble-incoming);
+  filter: drop-shadow(0 1px 0 rgba(0,0,0,0.03));
+}
+.tg-bubble.outgoing .tg-bubble-content::after{
+  content: "";
+  position:absolute;
+  right:-6px;
+  top:12px;
+  width:0; height:0;
+  border-top:8px solid transparent;
+  border-bottom:8px solid transparent;
+  border-left:8px solid rgba(255,255,255,0.06);
+  /* overlay gradient not trivial: keep subtle */
+}
+
+/* sender name and meta */
+.tg-bubble-sender{
+  font-weight:700;
+  font-size:13px;
+  margin-bottom:6px;
+  color:var(--muted);
+}
+.tg-bubble .tg-bubble-time{ display:block; font-size:11px; color:var(--muted); margin-top:6px; }
+
+/* system message */
+.tg-system{
+  display:flex; justify-content:center; margin:12px 0; color:var(--muted); font-size:13px;
+}
+
+/* date separators */
+.tg-date-sep{
+  text-align:center; margin:18px 0; color:var(--muted); font-size:13px;
+}
+.tg-date-sep .dot{
+  display:inline-block; margin:0 10px; background:rgba(0,0,0,0.06); width:8px; height:8px; border-radius:50%;
+}
+
+/* typing preview (small bubble under composer) */
+.tg-typing-preview{
+  font-size:13px;
+  color:var(--muted);
+  margin-top:4px;
+}
+
+/* composer/footer */
+.tg-composer{
+  display:flex; gap:8px; align-items:center; padding:10px;
+  border-top:1px solid rgba(0,0,0,0.04);
+  background:var(--surface);
+  position:sticky;
+  bottom:0;
+  z-index:60;
+}
+.tg-input-wrap{ flex:1; display:flex; flex-direction:column; }
+.tg-comment-input{
+  width:100%;
+  min-height:var(--input-height);
+  max-height:160px;
+  border-radius:12px;
+  padding:10px 12px;
+  border:1px solid rgba(0,0,0,0.06);
+  background:transparent;
+  color:var(--text);
+  resize:none;
+  outline:none;
+  font-size:14px;
+}
+:root[data-theme="dark"] .tg-comment-input{ border-color: rgba(255,255,255,0.04); }
+
+/* send button */
+.tg-send-btn{
+  background:var(--accent);
+  color:white;
+  border:0;
+  padding:10px 12px;
+  border-radius:12px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  box-shadow:var(--shadow-sm);
+  cursor:pointer;
+}
+.tg-send-btn.hidden{ display:none !important; }
+
+/* camera/attach button */
+.tg-camera-btn{ color:var(--muted); }
+
+/* pin banner */
+.tg-pin-banner{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  padding:10px 12px;
+  border-radius:10px;
+  margin:8px 12px;
+  background:var(--pin-bg);
+  border:1px solid var(--pin-border);
+  box-shadow: var(--shadow-sm);
+}
+.tg-pin-banner img{ width:40px; height:40px; border-radius:50%; object-fit:cover; }
+.tg-pin-banner .pin-text{ font-weight:700; color:var(--text); }
+.tg-pin-banner .contact-admin-btn{
+  margin-left:auto;
+  background:rgba(0,0,0,0.04);
+  border:0;
+  padding:8px 10px;
+  border-radius:8px;
+  display:inline-flex; align-items:center; gap:8px; cursor:pointer;
+}
+
+/* glass CTA inside bubble (for broadcast) */
+.tg-glass-cta{
+  margin-top:8px;
+  display:inline-block;
+  padding:8px 12px;
+  border-radius:999px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.04);
+  color:var(--bubble-outgoing-text);
+  cursor:pointer;
+}
+
+/* context menu */
+.tg-msg-context{
+  min-width:180px;
+  background:var(--surface);
+  color:var(--text);
+  border-radius:10px;
+  padding:8px;
+  box-shadow:var(--shadow-md);
+  position:fixed;
+  z-index:9999;
+}
+.tg-msg-context .ctx-item{ padding:8px 10px; cursor:pointer; border-radius:8px; }
+.tg-msg-context .ctx-item:hover{ background:var(--glass); }
+
+/* reaction pills */
+.tg-reactions{ display:flex; gap:6px; margin-top:6px; }
+.reaction-pill{
+  background: rgba(0,0,0,0.06);
+  color:var(--text);
+  padding:6px 8px;
+  border-radius:999px;
+  font-size:13px;
+  cursor:pointer;
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+}
+.reaction-pill.selected{ transform:translateY(-2px); box-shadow:0 4px 14px rgba(0,0,0,0.12); }
+
+/* join sticker */
+.tg-join-sticker-wrapper{
+  display:flex; justify-content:center; margin:12px 0;
+}
+.tg-join-sticker{
+  display:flex; gap:10px;
+  align-items:center;
+  background:var(--surface);
+  padding:10px 12px;
+  border-radius:12px;
+  box-shadow:var(--shadow-sm);
+  align-items:center;
+}
+.tg-join-sticker-avatar{ width:48px; height:48px; border-radius:12px; object-fit:cover; }
+.tg-join-sticker-title{ font-weight:700; }
+.tg-join-sticker-sub{ color:var(--muted); font-size:13px; }
+
+/* pin modal (desktop) */
+.tg-pin-modal{
+  position:fixed; right:16px; top:80px; width:300px; max-width:90vw; background:var(--surface); border-radius:12px; box-shadow:var(--shadow-md); padding:12px; z-index:999;
+}
+
+/* dev toolbar briefly */
+#abrox-dev-toolbar{ position:fixed; right:12px; bottom:12px; z-index:99999; background:rgba(0,0,0,0.6); color:#fff; padding:8px; border-radius:8px; font-size:13px; }
 
 /* responsive tweaks */
-@media (max-width:640px){
-  .tg-header .tg-title { font-size:16px; }
-  .tg-pin-banner { max-width:96%; padding:6px 10px; height:44px; }
-  .tg-bubble-avatar { width:36px; height:36px; }
-  .tg-bubble-content { max-width:74%; font-size:13px; padding:8px 10px; }
-  .tg-input-pill { padding:8px 10px; }
-  .tg-join-sticker { max-width:94%; padding:8px 10px; }
+@media (max-width:720px){
+  .tg-header{ padding:8px; }
+  .tg-avatar img{ width:40px; height:40px; }
+  .tg-comments-container{ padding:10px; }
+  .tg-pin-banner{ margin:6px 8px; padding:8px; }
+  :root{ --avatar-size:40px; }
 }
 
-/* end of widget.css */
+/* accessibility focus */
+.tg-icon-btn:focus, .contact-admin-btn:focus, .tg-send-btn:focus{ outline:3px solid rgba(42,141,246,0.18); outline-offset:2px; }
+
+/* small transitions */
+.tg-bubble-content, .tg-pin-banner, .tg-glass-cta{ transition: all .18s ease; }
+
+/* final safety: ensure hidden utility */
+.hidden{ display:none !important; }
