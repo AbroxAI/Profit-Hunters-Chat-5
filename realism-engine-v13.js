@@ -184,7 +184,6 @@
     }
   }
 
-  // ---------- POSTING + CLUSTER + TYPING ----------
   function post(count=1){
     ensurePool(100);
 
@@ -193,22 +192,17 @@
 
       const msg = POOL.shift();
 
-      // simulate typing indicator
-      const typingDelay = 400 + rand(800);
-      setTimeout(()=>{
-        if(window.TGRenderer?.appendMessage){
-          window.TGRenderer.appendMessage(
-            msg.persona,
-            msg.text,
-            { timestamp:msg.timestamp, type:"incoming", id:msg.id }
-          );
-        }
+      if(window.TGRenderer?.appendMessage){
+        window.TGRenderer.appendMessage(
+          msg.persona,
+          msg.text,
+          { timestamp:msg.timestamp, type:"incoming", id:msg.id }
+        );
+      }
 
-        if(maybe(CONFIG.reactionChance)){
-          triggerReply(msg.text);
-        }
-
-      }, typingDelay);
+      if(maybe(CONFIG.reactionChance)){
+        triggerReply(msg.text);
+      }
     }
   }
 
