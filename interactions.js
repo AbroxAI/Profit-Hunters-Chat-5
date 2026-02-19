@@ -1,306 +1,320 @@
 // interactions.js
 // Handles UI interactions: context menu, contact-admin, reaction clicks, view counting, jumper behavior.
-// Defensive: tolerant to missing DOM, missing other modules, idempotent.
-// Visual fixes applied: removed JS pulse effects, IntersectionObserver for view-count, simplified reactions.
+// Defensive, idempotent, no automatic bubble pulse (cleaned per request).
 // ============================================================
 
 (function(){
-  // small utilities
-  function safeLog(...args){ try{ console.log.apply(console, args); }catch(e){} }
-  function el(id){ return document.getElementById(id); }
-  function qs(sel, root=document){ try{ return root.querySelector(sel); }catch(e){ return null; } }
-  function qsa(sel, root=document){ try{ return Array.from(root.querySelectorAll(sel)); }catch(e){ return []; } }
-  function now(){ return new Date(); }
-  function clamp(n, a, b){ return Math.max(a, Math.min(b, n)); }
-  function rand(max){ return Math.floor(Math.random()*max); }
+  // ---------- Utilities ----------
+  const safeLog = (...args) => { try { console.log(...args); } catch(_){} };
+  const el = id => document.getElementById(id);
+  const qs = (sel, root = document) => { try { return root.querySelector(sel); } catch(_) { return null; } };
+  const qsa = (sel, root = document) => { try { return Array.from(root.querySelectorAll(sel)); } catch(_) { return []; } };
+  const now = () => new Date();
+  const randInt = (min, max) => Math.floor(Math.random()*(max-min+1)) + min;
 
-  // DOM refs
-  const commentsContainer = el("tg-comments-container");
+  // ---------- Defensive DOM refs ----------
+  const COMMENTS_ID = "tg-comments-container";
+  const commentsContainer = el(COMMENTS_ID);
   const jumpIndicator = el("tg-jump-indicator");
   const contactAdminDefault = window.CONTACT_ADMIN_LINK || "https://t.me/ph_suppp";
 
-  // ---------- view counting ----------
+  // ---------- Seen / view counting ----------
   const SEEN_KEY = "abrox_seen_counts_v1";
   let seenMap = {};
   (function loadSeen(){
     try{
       const raw = localStorage.getItem(SEEN_KEY);
-      if(raw) seenMap = JSON.parse(raw)||{};
+      if(raw) seenMap = JSON.parse(raw) || {};
     }catch(e){ seenMap = {}; }
   })();
-  function saveSeen(){ try{ localStorage.setItem(SEEN_KEY, JSON.stringify(seenMap)); }catch(e){} }
 
-  // Update seen count UI for a message id (best-effort)
-  function bumpViewCount(messageId, by=1){
-    if(!messageId) return;
-    seenMap[messageId] = (seenMap[messageId]||0) + by;
-    saveSeen();
-    try{
-      const elMsg = document.querySelector(`[data-id="${messageId}"]`);
-      if(elMsg){
-        let seenEl = elMsg.querySelector('.seen');
-        if(!seenEl){
-          // create light-weight seen element
-          seenEl = document.createElement('div');
-          seenEl.className = 'seen';
-          seenEl.style.fontSize = '12px';
-          seenEl.style.opacity = '0.9';
-          if(elMsg.querySelector('.tg-bubble-meta')) elMsg.querySelector('.tg-bubble-meta').appendChild(seenEl);
-          else elMsg.appendChild(seenEl);
-        }
-        // keep icon if present
-        const icon = seenEl.querySelector('svg') ? seenEl.querySelector('svg').outerHTML + " " : "";
-        seenEl.innerHTML = icon + (seenMap[messageId]||0);
-      }
-    }catch(e){ safeLog('bumpViewCount DOM update failed', e); }
+  function saveSeen(){
+    try{ localStorage.setItem(SEEN_KEY, JSON.stringify(seenMap)); }catch(e){}
   }
 
-  // IntersectionObserver for marking seen messages at center-of-container
-  let observer = null;
-  function createObserver(){
-    if(!commentsContainer || typeof IntersectionObserver === 'undefined') return null;
+  // Safely update seen count element for a message node
+  function updateSeenElementForNode(node, count){
     try{
-      const rootRect = commentsContainer.getBoundingClientRect();
-      // We'll use an observer with bounding root = commentsContainer
-      const obs = new IntersectionObserver((entries) => {
-        entries.forEach(en => {
-          try{
-            const node = en.target;
-            if(en.isIntersecting && en.intersectionRatio > 0.5){
-              const id = node.dataset.id;
-              if(id && (!seenMap[id] || seenMap[id] < 1)){
+      if(!node) return;
+      const seenEl = node.querySelector('.seen');
+      if(!seenEl) return;
+      // Preserve any leading icon markup (svg or i) when replacing the number
+      const iconNode = seenEl.querySelector('svg') || seenEl.querySelector('i');
+      let iconHtml = '';
+      if(iconNode) iconHtml = iconNode.outerHTML + ' ';
+      seenEl.innerHTML = iconHtml + String(count);
+    }catch(e){ /* ignore DOM errors */ }
+  }
+
+  // Increment view count and update DOM (idempotent)
+  function bumpViewCount(messageId, by = 1){
+    if(!messageId) return;
+    try{
+      seenMap[messageId] = (seenMap[messageId] || 0) + by;
+      updateSeenElementForNode(document.querySelector(`[data-id="${messageId}"]`), seenMap[messageId]);
+      // persist is deferred to interval, but update now to reduce risk
+      try{ localStorage.setItem(SEEN_KEY, JSON.stringify(seenMap)); }catch(e){}
+    }catch(e){ safeLog("bumpViewCount failed", e); }
+  }
+
+  // ---------- In-view detection (throttled) ----------
+  const INVIEW_THROTTLE_MS = 800;
+  let lastInViewTs = 0;
+
+  function checkMessagesInView(){
+    if(!commentsContainer) return;
+    try{
+      const nowTs = Date.now();
+      if(nowTs - lastInViewTs < INVIEW_THROTTLE_MS) return;
+      lastInViewTs = nowTs;
+
+      const bubbles = qsa('.tg-bubble', commentsContainer);
+      const rect = commentsContainer.getBoundingClientRect();
+      const viewTop = rect.top;
+      const viewBottom = rect.bottom;
+
+      for(const b of bubbles){
+        try{
+          const r = b.getBoundingClientRect();
+          const mid = (r.top + r.bottom) / 2;
+          if(mid > viewTop && mid < viewBottom){
+            const id = b.dataset.id;
+            if(id){
+              // ensure present with 0
+              if(!seenMap[id]) bumpViewCount(id, 0);
+              // first time seen
+              if(!seenMap[id] || seenMap[id] < 1){
                 bumpViewCount(id, 1);
-              } else if(id && !seenMap[id]){
-                bumpViewCount(id, 0);
               }
             }
-          }catch(e){}
-        });
-      }, {
-        root: commentsContainer,
-        threshold: [0.5] // center visibility
-      });
-      return obs;
-    }catch(e){
-      safeLog('createObserver failed', e);
-      return null;
-    }
+          }
+        }catch(e){ /* continue */ }
+      }
+    }catch(e){ safeLog("checkMessagesInView error", e); }
   }
 
-  function observeBubbles(){
-    if(!commentsContainer) return;
-    if(observer) observer.disconnect();
-    observer = createObserver();
-    if(!observer){
-      // fallback: throttled scan
-      setInterval(() => {
-        try{
-          const nodes = qsa('.tg-bubble', commentsContainer);
-          const rect = commentsContainer.getBoundingClientRect();
-          const viewTop = rect.top, viewBottom = rect.bottom;
-          nodes.forEach(n => {
-            try{
-              const r = n.getBoundingClientRect();
-              const mid = (r.top + r.bottom) / 2;
-              if(mid > viewTop && mid < viewBottom){
-                const id = n.dataset.id;
-                if(id && (!seenMap[id] || seenMap[id] < 1)) bumpViewCount(id, 1);
-              }
-            }catch(e){}
-          });
-        }catch(e){}
-      }, 900);
-      return;
-    }
-    // observe existing bubbles
-    qsa('.tg-bubble', commentsContainer).forEach(b => {
-      try{ observer.observe(b); }catch(e){}
+  // Attach scroll listener if container present
+  if(commentsContainer){
+    commentsContainer.addEventListener('scroll', () => {
+      try{
+        // show jump indicator when scrolled away from bottom
+        const scrollBottom = commentsContainer.scrollHeight - commentsContainer.scrollTop - commentsContainer.clientHeight;
+        if(jumpIndicator){
+          if(scrollBottom > 120) jumpIndicator.classList.remove('hidden');
+          else jumpIndicator.classList.add('hidden');
+        }
+        checkMessagesInView();
+      }catch(e){ safeLog("scroll handler error", e); }
     });
-    // Observe container for new bubbles (mutation observer)
-    if(window.MutationObserver){
-      const mo = new MutationObserver(muts => {
-        muts.forEach(m => {
-          try{
-            m.addedNodes && m.addedNodes.forEach(n => { if(n.nodeType===1 && n.classList && n.classList.contains('tg-bubble')) { try{ observer.observe(n); }catch(e){} } });
-          }catch(e){}
-        });
-      });
-      mo.observe(commentsContainer, { childList: true, subtree: true });
-    }
+    // initial check (defer slightly to allow initial render)
+    setTimeout(checkMessagesInView, 700);
   }
 
-  // Kick off observer after a tick
-  setTimeout(observeBubbles, 600);
-  // periodically persist seenMap
-  setInterval(saveSeen, 60*1000);
-
-  // ---------- context menu (animated, simple) ----------
-  let ctxMenuEl = document.getElementById('tg-msg-context');
+  // ---------- Context menu (idempotent) ----------
+  let ctxMenuEl = el('tg-msg-context');
   if(!ctxMenuEl){
     ctxMenuEl = document.createElement('div');
     ctxMenuEl.id = 'tg-msg-context';
-    ctxMenuEl.style.position = 'fixed';
-    ctxMenuEl.style.zIndex = 9999;
-    ctxMenuEl.style.display = 'none';
-    ctxMenuEl.style.background = 'rgba(8,12,14,0.98)';
-    ctxMenuEl.style.padding = '8px';
-    ctxMenuEl.style.borderRadius = '10px';
-    ctxMenuEl.style.boxShadow = '0 8px 30px rgba(0,0,0,0.6)';
-    ctxMenuEl.style.transition = 'opacity 0.18s ease, transform 0.18s ease';
+    ctxMenuEl.className = 'tg-msg-context hidden';
+    ctxMenuEl.setAttribute('role','menu');
     document.body.appendChild(ctxMenuEl);
   }
-  function hideContext(){ try{ ctxMenuEl.style.opacity='0'; ctxMenuEl.style.transform='translateY(-4px)'; setTimeout(()=>ctxMenuEl.style.display='none',180); ctxMenuEl.dataset.for=''; }catch(e){} }
-  function showContextFor(elMsg, x, y, messageId, personaName, messageText){
+
+  function hideContext(){
     try{
-      ctxMenuEl.innerHTML=''; ctxMenuEl.dataset.for = messageId||'';
-      const actions = [ {k:'reply',t:'Reply'}, {k:'copy',t:'Copy text'}, {k:'pin',t:'Pin message'}, {k:'contact',t:'Contact Admin'} ];
-      actions.forEach(a=>{
-        const b=document.createElement('div');
-        b.className='ctx-item';
-        b.textContent=a.t;
-        b.style.padding='8px 10px';
-        b.style.color='var(--tg-text, #fff)';
-        b.style.cursor='pointer';
-        b.style.whiteSpace='nowrap';
-        b.style.transition='background 0.12s ease';
-        b.addEventListener('mouseenter',()=>b.style.background='rgba(255,255,255,0.06)');
-        b.addEventListener('mouseleave',()=>b.style.background='transparent');
-        b.addEventListener('click', ev=>{ ev.stopPropagation(); handleContextAction(a.k, messageId, personaName, messageText); hideContext(); });
-        ctxMenuEl.appendChild(b);
-      });
+      ctxMenuEl.classList.add('hidden');
+      ctxMenuEl.innerHTML = '';
+      ctxMenuEl.dataset.for = '';
+    }catch(e){}
+  }
+
+  function showContextFor(targetElement, x, y, messageId, personaName, messageText){
+    try{
+      ctxMenuEl.innerHTML = '';
+      ctxMenuEl.dataset.for = messageId || '';
+
+      const actions = [
+        { k: 'reply', t: 'Reply' },
+        { k: 'copy', t: 'Copy text' },
+        { k: 'pin', t: 'Pin message' },
+        { k: 'contact', t: 'Contact Admin' }
+      ];
+
+      for(const a of actions){
+        const item = document.createElement('div');
+        item.className = 'ctx-item';
+        item.textContent = a.t;
+        item.tabIndex = 0;
+        item.addEventListener('click', ev => { ev.stopPropagation(); handleContextAction(a.k, messageId, personaName, messageText); hideContext(); });
+        item.addEventListener('keydown', ev => { if(ev.key === 'Enter') { ev.preventDefault(); ev.stopPropagation(); handleContextAction(a.k, messageId, personaName, messageText); hideContext(); } });
+        ctxMenuEl.appendChild(item);
+      }
+
+      // Position the menu with simple overflow handling
       const winW = window.innerWidth, winH = window.innerHeight;
       let left = x, top = y;
-      // small safe offsets
-      if(left + 220 > winW) left = winW - 240;
-      if(top + ctxMenuEl.offsetHeight > winH) top = winH - (ctxMenuEl.offsetHeight + 20);
+      // small margin
+      const margin = 12;
+      // estimate width after adding (but keep safe fallback)
+      const estW = 220;
+      const estH = Math.min(44 * actions.length, 220);
+      if(left + estW + margin > winW) left = Math.max(margin, winW - estW - margin);
+      if(top + estH + margin > winH) top = Math.max(margin, winH - estH - margin);
       ctxMenuEl.style.left = (left|0) + 'px';
       ctxMenuEl.style.top = (top|0) + 'px';
-      ctxMenuEl.style.display = 'block';
-      ctxMenuEl.style.opacity = '0';
-      ctxMenuEl.style.transform = 'translateY(-4px)';
-      requestAnimationFrame(()=>{ ctxMenuEl.style.opacity = '1'; ctxMenuEl.style.transform = 'translateY(0)'; });
+      ctxMenuEl.classList.remove('hidden');
     }catch(e){ safeLog('showContextFor error', e); }
   }
-  document.addEventListener('click', ()=> hideContext());
-  document.addEventListener('contextmenu', (e)=>{
+
+  // Hide on any document click / Esc
+  document.addEventListener('click', hideContext);
+  document.addEventListener('keydown', (e) => { if(e.key === 'Escape') hideContext(); });
+
+  document.addEventListener('contextmenu', (e) => {
     try{
       const target = e.target.closest && e.target.closest('.tg-bubble');
       if(!target) return;
-      e.preventDefault(); e.stopPropagation();
+      e.preventDefault();
+      e.stopPropagation();
       const mid = target.dataset.id || '';
       const persona = target.querySelector('.tg-bubble-sender') ? target.querySelector('.tg-bubble-sender').textContent : '';
       const text = (target.querySelector('.tg-bubble-text') && target.querySelector('.tg-bubble-text').textContent) || '';
       showContextFor(target, e.clientX, e.clientY, mid, persona, text);
-    }catch(err){}
+    }catch(err){ safeLog('contextmenu handler error', err); }
   });
 
+  // ---------- Context menu actions ----------
   function handleContextAction(actionKey, messageId, personaName, messageText){
     try{
       if(actionKey === 'reply'){
         const input = el('tg-comment-input');
         if(input){
           input.focus();
-          input.value = `@${personaName.split(" ")[0]} `;
+          input.value = `@${(personaName || 'user').split(" ")[0]} `;
           input.dispatchEvent(new Event('input'));
+          // optionally place a visual reply preview — left to TGRenderer if present
+          try{ if(window.TGRenderer && typeof window.TGRenderer.showReplyPreview === 'function') window.TGRenderer.showReplyPreview(messageId, messageText); }catch(e){}
         }
       } else if(actionKey === 'copy'){
-        try{ navigator.clipboard && navigator.clipboard.writeText(messageText); }catch(e){ safeLog('copy failed', e); }
+        try{ navigator.clipboard && navigator.clipboard.writeText(messageText || ''); }catch(e){ safeLog('copy failed', e); }
       } else if(actionKey === 'pin'){
         try{
           if(window.PinBanner && typeof window.PinBanner.highlightId === 'function'){
             window.PinBanner.highlightId(messageId);
           } else {
             const elMsg = document.querySelector(`[data-id="${messageId}"]`);
-            if(elMsg){ elMsg.scrollIntoView({behavior:'smooth', block:'center'}); elMsg.classList.add('tg-highlight'); setTimeout(()=> elMsg.classList.remove('tg-highlight'), 2600); }
+            if(elMsg){ elMsg.scrollIntoView({ behavior: 'smooth', block: 'center' }); elMsg.classList.add('tg-highlight'); setTimeout(()=> elMsg.classList.remove('tg-highlight'), 2600); }
           }
-        }catch(e){}
+        }catch(e){ safeLog('pin action error', e); }
       } else if(actionKey === 'contact'){
-        window.open(window.CONTACT_ADMIN_LINK || contactAdminDefault, '_blank');
+        try{ window.open(window.CONTACT_ADMIN_LINK || contactAdminDefault, '_blank'); }catch(e){}
       }
-    }catch(e){ safeLog('handleContextAction error', e); }
+    }catch(err){ safeLog('handleContextAction error', err); }
   }
 
-  // ---------- reactions: simple toggle, hover title ----------
+  // ---------- Reactions (delegated) ----------
   function ensureReactionUI(){
     if(!commentsContainer) return;
-    // delegated click
-    commentsContainer.addEventListener('click', function(ev){
-      const pill = ev.target.closest && ev.target.closest('.reaction-pill');
-      if(pill){
-        pill.classList.toggle('selected');
-        pill.setAttribute('aria-pressed', pill.classList.contains('selected') ? 'true' : 'false');
-      }
-      // ctrl/meta click quick-add
-      if(ev.target.closest && ev.target.closest('.tg-bubble') && (ev.ctrlKey || ev.metaKey)){
-        const bubble = ev.target.closest('.tg-bubble');
-        const reactions = bubble.querySelector('.tg-reactions');
-        if(reactions){
-          const rp = document.createElement('div');
-          rp.className = 'reaction-pill';
-          rp.textContent = '👍 1';
-          rp.title = 'You reacted 👍';
-          reactions.appendChild(rp);
+    // Add a delegated click handler
+    commentsContainer.addEventListener('click', (ev) => {
+      try{
+        const pill = ev.target.closest && ev.target.closest('.reaction-pill');
+        if(pill){
+          // toggle selected class
+          if(pill.classList.contains('selected')) pill.classList.remove('selected');
+          else pill.classList.add('selected');
+          // small transform for immediate feedback (no forced layout heavy ops)
+          pill.style.transform = pill.classList.contains('selected') ? 'translateY(-2px)' : '';
+          return;
         }
-      }
-    });
-    // hover previews: purely CSS is preferred; add small attribute for styling
-    commentsContainer.addEventListener('mouseover', function(ev){
-      const bubble = ev.target.closest && ev.target.closest('.tg-bubble');
-      if(bubble) bubble.classList.add('hover-preview');
-    });
-    commentsContainer.addEventListener('mouseout', function(ev){
-      const bubble = ev.target.closest && ev.target.closest('.tg-bubble');
-      if(bubble) bubble.classList.remove('hover-preview');
+
+        // Quick-add on ctrl/cmd + bubble click
+        if(ev.target.closest && ev.target.closest('.tg-bubble') && (ev.ctrlKey || ev.metaKey)){
+          const bubble = ev.target.closest('.tg-bubble');
+          const reactions = bubble.querySelector('.tg-reactions');
+          if(reactions){
+            const rp = document.createElement('div');
+            rp.className = 'reaction-pill';
+            rp.textContent = '👍 1';
+            rp.title = 'You reacted 👍';
+            reactions.appendChild(rp);
+            // small fade-in
+            rp.style.opacity = '0';
+            rp.style.transition = 'opacity 180ms ease, transform 180ms ease';
+            requestAnimationFrame(()=>{ rp.style.opacity = '1'; rp.style.transform = 'translateY(0)'; });
+          }
+        }
+      }catch(e){ safeLog('reaction handler error', e); }
     });
   }
   ensureReactionUI();
 
-  // ---------- jumper behavior ----------
-  if(jumpIndicator){
-    jumpIndicator.addEventListener('click', ()=>{
+  // ---------- Jump indicator (scroll-to-bottom) ----------
+  if(jumpIndicator && commentsContainer){
+    jumpIndicator.addEventListener('click', () => {
       try{
-        if(commentsContainer){
-          commentsContainer.scrollTop = commentsContainer.scrollHeight;
-          jumpIndicator.classList.add('hidden');
-        }
-      }catch(e){}
+        commentsContainer.scrollTo({ top: commentsContainer.scrollHeight, behavior: 'smooth' });
+        jumpIndicator.classList.add('hidden');
+      }catch(e){ safeLog('jump click failed', e); }
     });
   }
 
-  // ---------- contact-admin buttons ----------
+  // ---------- Contact admin button binding ----------
   function bindContactAdminButtons(){
-    document.addEventListener('click', function(ev){
-      const btn = ev.target.closest && ev.target.closest('.contact-admin-btn');
-      if(!btn) return;
-      ev.preventDefault(); ev.stopPropagation();
-      const href = window.CONTACT_ADMIN_LINK || contactAdminDefault;
-      window.open(href, '_blank');
+    document.addEventListener('click', (ev) => {
+      try{
+        const btn = ev.target.closest && ev.target.closest('.contact-admin-btn');
+        if(!btn) return;
+        ev.preventDefault(); ev.stopPropagation();
+        const href = window.CONTACT_ADMIN_LINK || contactAdminDefault;
+        // prefer ticket API if available
+        if(typeof window.sendAdminTicket === 'function'){
+          // if there's a pinned message context, pass its id; otherwise null
+          const pinnedId = (document.getElementById('tg-pin-banner') && document.getElementById('tg-pin-banner').dataset.pinnedId) || null;
+          try{ window.sendAdminTicket('Guest', 'Contact requested from UI', pinnedId); return; }catch(e){ /* fallback to open link */ }
+        }
+        window.open(href, '_blank');
+      }catch(e){ safeLog('bindContactAdminButtons error', e); }
     });
   }
   bindContactAdminButtons();
 
-  // ---------- dev toolbar (guarded) ----------
+  // ---------- Dev toolbar (idempotent) ----------
   (function addDevToolbar(){
     try{
       if(!window.location.search.includes('abrox-dev')) return;
-      let t = el('abrox-dev-toolbar');
-      if(t) return;
-      t = document.createElement('div');
+      if(el('abrox-dev-toolbar')) return;
+      const t = document.createElement('div');
       t.id = 'abrox-dev-toolbar';
-      t.style.position='fixed'; t.style.right='12px'; t.style.bottom='12px'; t.style.zIndex=99999;
-      t.style.background='rgba(0,0,0,0.6)'; t.style.color='#fff'; t.style.padding='8px'; t.style.borderRadius='8px'; t.style.fontSize='13px';
+      t.style.position = 'fixed';
+      t.style.right = '12px';
+      t.style.bottom = '12px';
+      t.style.zIndex = '99999';
+      t.style.background = 'rgba(0,0,0,0.6)';
+      t.style.color = '#fff';
+      t.style.padding = '8px';
+      t.style.borderRadius = '8px';
+      t.style.fontSize = '13px';
       t.innerHTML = '<button id="abrox-dev-seed">seedNow(30)</button> <button id="abrox-dev-real">realism.start</button>';
       document.body.appendChild(t);
       el('abrox-dev-seed')?.addEventListener('click', ()=>{ if(window.realism?.seedNow) window.realism.seedNow(30); });
       el('abrox-dev-real')?.addEventListener('click', ()=>{ if(window.realism?.start) window.realism.start(); });
-    }catch(e){}
+    }catch(e){ safeLog('addDevToolbar error', e); }
   })();
 
-  // expose API
+  // ---------- Expose API ----------
   window.Interactions = window.Interactions || {};
   Object.assign(window.Interactions, {
-    bumpViewCount, hideContext, showContextFor, ensureReactionUI, bindContactAdminButtons
+    bumpViewCount,
+    hideContext,
+    showContextFor,
+    ensureReactionUI,
+    bindContactAdminButtons,
+    checkMessagesInView
   });
 
-  safeLog('interactions initialized (visual fixes: no JS pulses, observer-based seen)');
+  // periodic persistence of seenMap
+  setInterval(saveSeen, 60 * 1000);
+
+  safeLog('interactions initialized (clean, no pulse)');
 })();
